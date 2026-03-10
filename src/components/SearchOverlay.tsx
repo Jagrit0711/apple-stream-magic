@@ -53,6 +53,7 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
+          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
           {/* Search bar */}
           <div className="max-w-3xl mx-auto px-6 pt-8">
