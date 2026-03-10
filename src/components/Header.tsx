@@ -13,7 +13,7 @@ interface HeaderProps {
 
 const NAV_ITEMS = ["Home", "Movies", "TV Shows", "Anime"];
 
-const Header = ({ onSearch, onNavChange, activeNav, onAuthClick }: HeaderProps) => {
+const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }: HeaderProps) => {
   const { user, profile, signOut } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
