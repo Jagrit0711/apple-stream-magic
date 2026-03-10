@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, X, User, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +17,13 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick }: HeaderProps) 
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
 
   const handleSearch = (val: string) => {
     setQuery(val);
@@ -24,19 +31,30 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick }: HeaderProps) 
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-background via-background/80 to-transparent">
-      <div className="flex items-center justify-between px-8 py-5 max-w-[1600px] mx-auto">
-        <div className="flex items-center gap-10">
-          <h1 className="font-display font-bold text-xl tracking-tight text-foreground">
-            Watch <span className="text-accent">by zuup</span>
-          </h1>
-          <nav className="hidden md:flex items-center gap-8">
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        scrolled
+          ? "glass-strong"
+          : "bg-gradient-to-b from-background via-background/60 to-transparent"
+      }`}
+    >
+      <div className="flex items-center justify-between px-6 md:px-8 py-4 max-w-[1600px] mx-auto">
+        <div className="flex items-center gap-8">
+          {/* Logo */}
+          <div className="flex items-baseline gap-0">
+            <span className="font-semibold text-lg tracking-tight text-foreground">Watch</span>
+            <span className="text-[10px] font-medium text-meta ml-1.5 tracking-wider uppercase">by zuup</span>
+          </div>
+
+          <nav className="hidden md:flex items-center gap-1">
             {NAV_ITEMS.map((item) => (
               <button
                 key={item}
                 onClick={() => onNavChange(item)}
-                className={`font-display font-medium text-sm tracking-wide transition-colors ${
-                  activeNav === item ? "text-foreground" : "text-meta hover:text-foreground"
+                className={`relative px-4 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300 ${
+                  activeNav === item
+                    ? "text-foreground bg-[hsla(0,0%,100%,0.08)]"
+                    : "text-meta hover:text-foreground"
                 }`}
               >
                 {item}
@@ -45,55 +63,70 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick }: HeaderProps) 
           </nav>
         </div>
 
-        <div className="flex items-center gap-4">
-          <AnimatePresence>
-            {searchOpen && (
-              <motion.input
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 240, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                type="text"
-                placeholder="Search movies, shows..."
-                value={query}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="bg-surface border border-border rounded-md px-4 py-2 text-sm font-body text-foreground placeholder:text-meta focus:outline-none focus:ring-1 focus:ring-accent"
-                autoFocus
-              />
-            )}
-          </AnimatePresence>
-          <button
-            onClick={() => {
-              setSearchOpen(!searchOpen);
-              if (searchOpen) { setQuery(""); onSearch(""); }
-            }}
-            className="text-meta hover:text-foreground transition-colors p-2"
-          >
-            {searchOpen ? <X size={20} /> : <Search size={20} />}
-          </button>
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative flex items-center">
+            <AnimatePresence>
+              {searchOpen && (
+                <motion.div
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 280, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-hidden"
+                >
+                  <input
+                    type="text"
+                    placeholder="Search movies, shows, anime..."
+                    value={query}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="w-full glass rounded-full px-5 py-2.5 text-[13px] text-foreground placeholder:text-meta focus:outline-none focus:ring-1 focus:ring-accent/50"
+                    autoFocus
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <button
+              onClick={() => {
+                setSearchOpen(!searchOpen);
+                if (searchOpen) { setQuery(""); onSearch(""); }
+              }}
+              className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300"
+            >
+              {searchOpen ? <X size={18} /> : <Search size={18} />}
+            </button>
+          </div>
 
           {/* Account */}
           <div className="relative">
             <button
               onClick={() => user ? setMenuOpen(!menuOpen) : onAuthClick()}
-              className="text-meta hover:text-foreground transition-colors p-2"
+              className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300"
             >
-              <User size={20} />
+              <User size={18} />
             </button>
-            {user && menuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-lg shadow-xl overflow-hidden z-50">
-                <div className="px-4 py-3 border-b border-border">
-                  <p className="font-body text-sm text-foreground truncate">{profile?.display_name || user.email}</p>
-                  <p className="font-body text-xs text-meta truncate">{user.email}</p>
-                </div>
-                <button
-                  onClick={() => { signOut(); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-left font-body text-sm text-meta hover:text-foreground hover:bg-surface transition-colors"
+            <AnimatePresence>
+              {user && menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute right-0 top-full mt-2 w-52 glass-strong rounded-xl overflow-hidden z-50"
                 >
-                  <LogOut size={14} /> Sign Out
-                </button>
-              </div>
-            )}
+                  <div className="px-4 py-3 border-b border-[hsla(0,0%,100%,0.06)]">
+                    <p className="text-sm text-foreground truncate">{profile?.display_name || user.email}</p>
+                    <p className="text-xs text-meta truncate">{user.email}</p>
+                  </div>
+                  <button
+                    onClick={() => { signOut(); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.04)] transition-colors"
+                  >
+                    <LogOut size={14} /> Sign Out
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
