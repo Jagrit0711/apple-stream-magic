@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, X, User, LogOut } from "lucide-react";
+import { Search, User, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 
