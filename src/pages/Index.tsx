@@ -18,21 +18,23 @@ import {
 } from "@/lib/tmdb";
 import { useAuth } from "@/hooks/useAuth";
 import { useWatchHistory } from "@/hooks/useWatchHistory";
+import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
 import Header from "@/components/Header";
 import FeaturedHero from "@/components/FeaturedHero";
 import ContentShelf from "@/components/ContentShelf";
 import DetailView from "@/components/DetailView";
 import VideoPlayer from "@/components/VideoPlayer";
-import SearchResults from "@/components/SearchResults";
+import SearchOverlay from "@/components/SearchOverlay";
 import ContinueWatchingShelf from "@/components/ContinueWatchingShelf";
 import AuthModal from "@/components/AuthModal";
 import Onboarding from "@/components/Onboarding";
 
 const Index = () => {
   const { user, profile } = useAuth();
-  const { continueWatching, recentlyWatched, trackWatch } = useWatchHistory();
+  const { continueWatching, recentlyWatched, history, trackWatch } = useWatchHistory();
+  const { recommendations } = useSmartRecommendations(history);
   const [activeNav, setActiveNav] = useState("Home");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<TMDBMovie | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [player, setPlayer] = useState<{
@@ -54,7 +56,6 @@ const Index = () => {
   const { data: popularTV = [] } = useQuery({ queryKey: ["popular-tv"], queryFn: fetchPopularTV });
   const { data: onTheAir = [] } = useQuery({ queryKey: ["on-the-air"], queryFn: fetchOnTheAirTV });
 
-  // Genre-based shelves for personalized recommendations
   const favoriteGenres = profile?.favorite_genres || [];
   const { data: genreMovies1 = [] } = useQuery({
     queryKey: ["genre-movies", favoriteGenres[0]],
@@ -71,8 +72,6 @@ const Index = () => {
   const tvShows = tvData?.results || [];
   const anime = animeData?.results || [];
 
-  const featured = trending[0] || null;
-
   const handleSelect = (item: TMDBMovie) => setSelectedItem(item);
   const handlePlay = (item: TMDBMovie) => {
     const type = getContentType(item);
@@ -84,7 +83,9 @@ const Index = () => {
     setPlayer({ id, type, season, episode });
   };
 
-  const isSearching = searchQuery.length > 2;
+  const handleSearch = (_q: string) => {
+    // We use the overlay now, this is just to keep Header interface
+  };
 
   const genreNameById = (id: number) => {
     const genres: Record<number, string> = { 28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime", 99: "Documentary", 18: "Drama", 14: "Fantasy", 27: "Horror", 10749: "Romance", 878: "Sci-Fi", 53: "Thriller" };
@@ -107,83 +108,88 @@ const Index = () => {
     if (activeNav === "Anime") return [
       { title: "Popular Anime", items: anime },
     ];
-    // Home
-    const s = [
+    const s: { title: string; items: TMDBMovie[] }[] = [
       { title: "Trending Today", items: trendingDay.slice(0, 20) },
       { title: "Trending This Week", items: trending.slice(1, 20) },
+    ];
+    // AI Recommendations
+    if (recommendations.length > 0) {
+      s.push({ title: "🤖 AI Picks For You", items: recommendations });
+    }
+    s.push(
       { title: "Now Playing in Theaters", items: nowPlaying },
       { title: "Popular Movies", items: movies },
+    );
+    if (genreMovies1.length > 0 && favoriteGenres[0]) {
+      s.push({ title: `Because you like ${genreNameById(favoriteGenres[0])}`, items: genreMovies1 });
+    }
+    s.push(
       { title: "Top Rated Movies", items: topRatedMovies },
       { title: "Upcoming Movies", items: upcoming },
+    );
+    if (genreMovies2.length > 0 && favoriteGenres[1]) {
+      s.push({ title: `${genreNameById(favoriteGenres[1])} Picks For You`, items: genreMovies2 });
+    }
+    s.push(
       { title: "Popular TV", items: popularTV },
       { title: "Top Rated TV", items: tvShows },
       { title: "Airing Today", items: airingToday },
       { title: "Anime", items: anime },
-    ];
-    // Add personalized genre shelves
-    if (genreMovies1.length > 0 && favoriteGenres[0]) {
-      s.splice(2, 0, { title: `Because you like ${genreNameById(favoriteGenres[0])}`, items: genreMovies1 });
-    }
-    if (genreMovies2.length > 0 && favoriteGenres[1]) {
-      s.splice(4, 0, { title: `${genreNameById(favoriteGenres[1])} Picks For You`, items: genreMovies2 });
-    }
+    );
     return s;
-  }, [activeNav, trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, onTheAir, genreMovies1, genreMovies2, favoriteGenres]);
+  }, [activeNav, trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, onTheAir, genreMovies1, genreMovies2, favoriteGenres, recommendations]);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Onboarding for new users */}
       {user && <Onboarding />}
 
-      <Header onSearch={setSearchQuery} onNavChange={setActiveNav} activeNav={activeNav} onAuthClick={() => setAuthOpen(true)} />
+      <Header
+        onSearch={handleSearch}
+        onNavChange={setActiveNav}
+        activeNav={activeNav}
+        onAuthClick={() => setAuthOpen(true)}
+        onSearchClick={() => setSearchOpen(true)}
+      />
 
-      {isSearching ? (
-        <SearchResults query={searchQuery} onSelect={handleSelect} />
-      ) : (
-        <>
-          {featured && activeNav === "Home" && (
-            <FeaturedHero item={featured} onSelect={handleSelect} onPlay={handlePlay} />
-          )}
-
-          <div className={`${activeNav !== "Home" || !featured ? "pt-28" : "pt-8"} pb-16`}>
-            {/* Continue Watching */}
-            {user && continueWatching.length > 0 && activeNav === "Home" && (
-              <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
-            )}
-
-            {/* Recently Watched */}
-            {user && recentlyWatched.length > 0 && activeNav === "Home" && (
-              <section className="mb-12">
-                <div className="px-8 max-w-[1600px] mx-auto mb-4">
-                  <h3 className="font-display font-semibold text-lg text-foreground">Recently Watched</h3>
-                </div>
-                <div className="shelf-scroll flex gap-4 overflow-x-auto px-8 max-w-[1600px] mx-auto">
-                  {recentlyWatched.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => handlePlayDirect(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
-                      className="flex-shrink-0 w-[180px] group focus:outline-none"
-                    >
-                      <div className="aspect-[2/3] rounded-md overflow-hidden bg-surface mb-2">
-                        {item.poster_path ? (
-                          <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-meta font-body text-sm">No Image</div>
-                        )}
-                      </div>
-                      <p className="font-body text-sm text-foreground/80 truncate text-left">{item.title}</p>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {shelves.map(({ title, items }) => (
-              <ContentShelf key={title} title={title} items={items} onSelect={handleSelect} />
-            ))}
-          </div>
-        </>
+      {activeNav === "Home" && trending.length > 0 && (
+        <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />
       )}
+
+      <div className={`${activeNav !== "Home" || trending.length === 0 ? "pt-28" : "pt-8"} pb-16`}>
+        {user && continueWatching.length > 0 && activeNav === "Home" && (
+          <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
+        )}
+
+        {user && recentlyWatched.length > 0 && activeNav === "Home" && (
+          <section className="mb-10">
+            <div className="px-6 md:px-8 max-w-[1600px] mx-auto mb-4">
+              <h3 className="font-semibold text-base text-foreground tracking-tight">Recently Watched</h3>
+            </div>
+            <div className="shelf-scroll flex gap-3 overflow-x-auto px-6 md:px-8 max-w-[1600px] mx-auto">
+              {recentlyWatched.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => handlePlayDirect(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
+                  className="flex-shrink-0 w-[160px] group focus:outline-none"
+                >
+                  <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2">
+                    {item.poster_path ? (
+                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-meta text-sm">No Image</div>
+                    )}
+                  </div>
+                  <p className="text-[13px] text-foreground/70 truncate text-left font-medium">{item.title}</p>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {shelves.map(({ title, items }) => (
+          <ContentShelf key={title} title={title} items={items} onSelect={handleSelect} />
+        ))}
+      </div>
 
       <DetailView item={selectedItem} onClose={() => setSelectedItem(null)} onPlay={handlePlayDirect} />
 
@@ -197,6 +203,7 @@ const Index = () => {
         />
       )}
 
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={handleSelect} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </div>
   );
