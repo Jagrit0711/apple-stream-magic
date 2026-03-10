@@ -14,7 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          favorite_genres: number[] | null
+          id: string
+          onboarding_complete: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          favorite_genres?: number[] | null
+          id?: string
+          onboarding_complete?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          favorite_genres?: number[] | null
+          id?: string
+          onboarding_complete?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      watch_history: {
+        Row: {
+          backdrop_path: string | null
+          created_at: string
+          duration: number | null
+          episode: number | null
+          id: string
+          last_watched_at: string
+          media_type: string
+          poster_path: string | null
+          progress: number
+          season: number | null
+          title: string
+          tmdb_id: number
+          user_id: string
+        }
+        Insert: {
+          backdrop_path?: string | null
+          created_at?: string
+          duration?: number | null
+          episode?: number | null
+          id?: string
+          last_watched_at?: string
+          media_type: string
+          poster_path?: string | null
+          progress?: number
+          season?: number | null
+          title: string
+          tmdb_id: number
+          user_id: string
+        }
+        Update: {
+          backdrop_path?: string | null
+          created_at?: string
+          duration?: number | null
+          episode?: number | null
+          id?: string
+          last_watched_at?: string
+          media_type?: string
+          poster_path?: string | null
+          progress?: number
+          season?: number | null
+          title?: string
+          tmdb_id?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
