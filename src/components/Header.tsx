@@ -15,8 +15,6 @@ const NAV_ITEMS = ["Home", "Movies", "TV Shows", "Anime"];
 
 const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }: HeaderProps) => {
   const { user, profile, signOut } = useAuth();
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -25,11 +23,6 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
   }, []);
-
-  const handleSearch = (val: string) => {
-    setQuery(val);
-    onSearch(val);
-  };
 
   return (
     <header
