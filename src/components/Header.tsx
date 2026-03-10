@@ -64,37 +64,12 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="relative flex items-center">
-            <AnimatePresence>
-              {searchOpen && (
-                <motion.div
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 280, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className="overflow-hidden"
-                >
-                  <input
-                    type="text"
-                    placeholder="Search movies, shows, anime..."
-                    value={query}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full bg-surface border border-border rounded-full px-5 py-2.5 text-[13px] text-foreground placeholder:text-meta focus:outline-none focus:ring-1 focus:ring-accent/50"
-                    autoFocus
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <button
-              onClick={() => {
-                setSearchOpen(!searchOpen);
-                if (searchOpen) { setQuery(""); onSearch(""); }
-              }}
+          <button
+              onClick={onSearchClick}
               className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300"
             >
-              {searchOpen ? <X size={18} /> : <Search size={18} />}
+              <Search size={18} />
             </button>
-          </div>
 
           <div className="relative">
             <button
