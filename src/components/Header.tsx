@@ -8,6 +8,7 @@ interface HeaderProps {
   onNavChange: (nav: string) => void;
   activeNav: string;
   onAuthClick: () => void;
+  onSearchClick?: () => void;
 }
 
 const NAV_ITEMS = ["Home", "Movies", "TV Shows", "Anime"];
