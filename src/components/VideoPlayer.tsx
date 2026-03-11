@@ -10,8 +10,81 @@ interface VideoPlayerProps {
   onClose: () => void;
 }
 
+const ALLOWED_DOMAIN = "zuup.dev";
+
 const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Block external redirects - intercept any navigation away from zuup.dev
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Check if we're being navigated away
+      e.preventDefault();
+    };
+
+    // Intercept clicks that might navigate away
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+      if (anchor) {
+        const href = anchor.href;
+        if (href) {
+          try {
+            const url = new URL(href);
+            if (!url.hostname.endsWith(ALLOWED_DOMAIN) && url.hostname !== ALLOWED_DOMAIN) {
+              e.preventDefault();
+              e.stopPropagation();
+              console.warn("Blocked external navigation to:", href);
+              return false;
+            }
+          } catch {}
+        }
+      }
+    };
+
+    // Block window.open calls to external domains
+    const originalOpen = window.open;
+    window.open = (url?: string | URL, ...args: any[]) => {
+      if (url) {
+        try {
+          const parsed = new URL(url.toString(), window.location.href);
+          if (!parsed.hostname.endsWith(ALLOWED_DOMAIN) && parsed.hostname !== ALLOWED_DOMAIN) {
+            console.warn("Blocked window.open to:", url);
+            return null;
+          }
+        } catch {}
+      }
+      return originalOpen(url, ...args);
+    };
+
+    // Block location.href assignments to external domains via MutationObserver on iframes
+    const handleMessage = (event: MessageEvent) => {
+      // Block messages trying to navigate parent
+      if (event.data && typeof event.data === "object") {
+        if (event.data.type === "navigate" || event.data.action === "redirect") {
+          const url = event.data.url || event.data.href;
+          if (url) {
+            try {
+              const parsed = new URL(url, window.location.href);
+              if (!parsed.hostname.endsWith(ALLOWED_DOMAIN) && parsed.hostname !== ALLOWED_DOMAIN) {
+                console.warn("Blocked redirect message to:", url);
+                return;
+              }
+            } catch {}
+          }
+        }
+      }
+    };
+
+    document.addEventListener("click", handleClick, true);
+    window.addEventListener("message", handleMessage);
+
+    return () => {
+      document.removeEventListener("click", handleClick, true);
+      window.removeEventListener("message", handleMessage);
+      window.open = originalOpen;
+    };
+  }, []);
 
   // Lock orientation to landscape on mobile when playing
   useEffect(() => {
@@ -81,6 +154,7 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
             }}
             allowFullScreen
             allow="encrypted-media; fullscreen; autoplay"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-fullscreen"
           />
         </motion.div>
       )}
