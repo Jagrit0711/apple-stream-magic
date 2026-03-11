@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useWatchHistory } from "@/hooks/useWatchHistory";
 import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import Header from "@/components/Header";
 import FeaturedHero from "@/components/FeaturedHero";
 import ContentShelf from "@/components/ContentShelf";
@@ -29,11 +30,13 @@ import ContinueWatchingShelf from "@/components/ContinueWatchingShelf";
 import AuthModal from "@/components/AuthModal";
 import Onboarding from "@/components/Onboarding";
 import MobileNavBar from "@/components/MobileNavBar";
+import TabletLayout from "@/components/TabletLayout";
 
 const Index = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { continueWatching, recentlyWatched, history, trackWatch } = useWatchHistory();
   const { recommendations } = useSmartRecommendations(history);
+  const { canInstall, promptInstall } = useInstallPrompt();
   const [activeNav, setActiveNav] = useState("Home");
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<TMDBMovie | null>(null);
@@ -79,29 +82,17 @@ const Index = () => {
     const type = getContentType(item);
     const season = type === "tv" ? 1 : undefined;
     const episode = type === "tv" ? 1 : undefined;
-    // Track immediately with progress=5 so it shows in Continue Watching right away
     trackWatch(item, 5, null, season, episode);
     setPlayer({ id: item.id, type, season, episode });
   };
 
   const handlePlayDirect = (id: number, type: "movie" | "tv", season?: number, episode?: number) => {
     setSelectedItem(null);
-    // Find the item in history or trending to track it
     const existingHistory = history.find(h => h.tmdb_id === id && h.media_type === type);
     if (!existingHistory) {
-      // Track a stub entry so it appears in continue watching
       const allItems = [...trending, ...trendingDay, ...movies, ...tvShows, ...anime, ...nowPlaying, ...topRatedMovies, ...popularTV];
       const found = allItems.find(i => i.id === id);
-      if (found) {
-        trackWatch(found, 5, null, season, episode);
-      }
-    } else {
-      // Refresh last_watched_at
-      if (existingHistory.progress < 90) {
-        // Update last_watched_at by re-upsert with same progress
-        const found = [...trending, ...movies, ...tvShows].find(i => i.id === id);
-        if (found) trackWatch(found, existingHistory.progress, existingHistory.duration, season, episode);
-      }
+      if (found) trackWatch(found, 5, null, season, episode);
     }
     setPlayer({ id, type, season, episode });
   };
@@ -131,9 +122,7 @@ const Index = () => {
       { title: "Trending Today", items: trendingDay.slice(0, 20) },
       { title: "Trending This Week", items: trending.slice(1, 20) },
     ];
-    if (recommendations.length > 0) {
-      s.push({ title: "🤖 AI Picks For You", items: recommendations });
-    }
+    if (recommendations.length > 0) s.push({ title: "🤖 AI Picks For You", items: recommendations });
     s.push(
       { title: "Now Playing in Theaters", items: nowPlaying },
       { title: "Popular Movies", items: movies },
@@ -157,61 +146,10 @@ const Index = () => {
     return s;
   }, [activeNav, trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, onTheAir, genreMovies1, genreMovies2, favoriteGenres, recommendations]);
 
-  return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      {user && <Onboarding />}
-
-      <Header
-        onSearch={() => {}}
-        onNavChange={setActiveNav}
-        activeNav={activeNav}
-        onAuthClick={() => setAuthOpen(true)}
-        onSearchClick={() => setSearchOpen(true)}
-      />
-
-      {activeNav === "Home" && trending.length > 0 && (
-        <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />
-      )}
-
-      {/* Main content - add bottom padding for mobile nav */}
-      <div className={`${activeNav !== "Home" || trending.length === 0 ? "pt-24 sm:pt-28" : "pt-6 sm:pt-8"} pb-24 md:pb-16`}>
-        {user && continueWatching.length > 0 && activeNav === "Home" && (
-          <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
-        )}
-
-        {user && recentlyWatched.length > 0 && activeNav === "Home" && (
-          <section className="mb-8 sm:mb-10">
-            <div className="px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-3 sm:mb-4">
-              <h3 className="font-semibold text-sm sm:text-base text-foreground tracking-tight">Recently Watched</h3>
-            </div>
-            <div className="shelf-scroll flex gap-2.5 sm:gap-3 overflow-x-auto px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto">
-              {recentlyWatched.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => handlePlayDirect(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
-                  className="flex-shrink-0 w-[120px] sm:w-[160px] group focus:outline-none active:scale-[0.97] touch-manipulation"
-                >
-                  <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2">
-                    {item.poster_path ? (
-                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-meta text-sm">No Image</div>
-                    )}
-                  </div>
-                  <p className="text-[12px] sm:text-[13px] text-foreground/70 truncate text-left font-medium">{item.title}</p>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {shelves.map(({ title, items }) => (
-          <ContentShelf key={title} title={title} items={items} onSelect={handleSelect} />
-        ))}
-      </div>
-
+  // Shared overlays (work across all layouts)
+  const overlays = (
+    <>
       <DetailView item={selectedItem} onClose={() => setSelectedItem(null)} onPlay={handlePlayDirect} />
-
       {player && (
         <VideoPlayer
           contentId={player.id}
@@ -221,18 +159,93 @@ const Index = () => {
           onClose={() => setPlayer(null)}
         />
       )}
-
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={handleSelect} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+    </>
+  );
 
-      {/* Mobile bottom nav */}
-      <MobileNavBar
+  return (
+    <>
+      {user && <Onboarding />}
+
+      {/* ── TABLET LAYOUT (768–1199px) ── */}
+      <TabletLayout
         activeNav={activeNav}
         onNavChange={setActiveNav}
+        trending={trending}
+        shelves={shelves}
+        continueWatching={continueWatching}
+        onSelect={handleSelect}
+        onPlay={handlePlay}
         onSearchClick={() => setSearchOpen(true)}
         onAuthClick={() => setAuthOpen(true)}
+        user={user}
+        profile={profile}
+        onSignOut={signOut}
+        canInstall={canInstall}
+        onInstall={promptInstall}
       />
-    </div>
+
+      {/* ── MOBILE + DESKTOP LAYOUT (existing) ── */}
+      <div className="mobile-layout-wrapper min-h-screen bg-background overflow-x-hidden">
+        <Header
+          onSearch={() => {}}
+          onNavChange={setActiveNav}
+          activeNav={activeNav}
+          onAuthClick={() => setAuthOpen(true)}
+          onSearchClick={() => setSearchOpen(true)}
+        />
+
+        {activeNav === "Home" && trending.length > 0 && (
+          <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />
+        )}
+
+        <div className={`${activeNav !== "Home" || trending.length === 0 ? "pt-24 sm:pt-28" : "pt-6 sm:pt-8"} pb-24 md:pb-16`}>
+          {user && continueWatching.length > 0 && activeNav === "Home" && (
+            <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
+          )}
+
+          {user && recentlyWatched.length > 0 && activeNav === "Home" && (
+            <section className="mb-8 sm:mb-10">
+              <div className="px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-3 sm:mb-4">
+                <h3 className="font-semibold text-sm sm:text-base text-foreground tracking-tight">Recently Watched</h3>
+              </div>
+              <div className="shelf-scroll flex gap-2.5 sm:gap-3 overflow-x-auto px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto">
+                {recentlyWatched.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => handlePlayDirect(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
+                    className="flex-shrink-0 w-[120px] sm:w-[160px] group focus:outline-none active:scale-[0.97] touch-manipulation"
+                  >
+                    <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2">
+                      {item.poster_path ? (
+                        <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-meta text-sm">No Image</div>
+                      )}
+                    </div>
+                    <p className="text-[12px] sm:text-[13px] text-foreground/70 truncate text-left font-medium">{item.title}</p>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {shelves.map(({ title, items }) => (
+            <ContentShelf key={title} title={title} items={items} onSelect={handleSelect} />
+          ))}
+        </div>
+
+        <MobileNavBar
+          activeNav={activeNav}
+          onNavChange={setActiveNav}
+          onSearchClick={() => setSearchOpen(true)}
+          onAuthClick={() => setAuthOpen(true)}
+        />
+      </div>
+
+      {overlays}
+    </>
   );
 };
 
