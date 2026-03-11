@@ -1,0 +1,1 @@
+ALTER TABLE public.watch_history ADD CONSTRAINT watch_history_user_tmdb_type_unique UNIQUE (user_id, tmdb_id, media_type);

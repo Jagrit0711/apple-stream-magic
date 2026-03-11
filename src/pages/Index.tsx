@@ -83,10 +83,6 @@ const Index = () => {
     setPlayer({ id, type, season, episode });
   };
 
-  const handleSearch = (_q: string) => {
-    // We use the overlay now, this is just to keep Header interface
-  };
-
   const genreNameById = (id: number) => {
     const genres: Record<number, string> = { 28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime", 99: "Documentary", 18: "Drama", 14: "Fantasy", 27: "Horror", 10749: "Romance", 878: "Sci-Fi", 53: "Thriller" };
     return genres[id] || "Picks";
@@ -112,7 +108,6 @@ const Index = () => {
       { title: "Trending Today", items: trendingDay.slice(0, 20) },
       { title: "Trending This Week", items: trending.slice(1, 20) },
     ];
-    // AI Recommendations
     if (recommendations.length > 0) {
       s.push({ title: "🤖 AI Picks For You", items: recommendations });
     }
@@ -140,11 +135,11 @@ const Index = () => {
   }, [activeNav, trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, onTheAir, genreMovies1, genreMovies2, favoriteGenres, recommendations]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {user && <Onboarding />}
 
       <Header
-        onSearch={handleSearch}
+        onSearch={() => {}}
         onNavChange={setActiveNav}
         activeNav={activeNav}
         onAuthClick={() => setAuthOpen(true)}
@@ -155,31 +150,31 @@ const Index = () => {
         <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />
       )}
 
-      <div className={`${activeNav !== "Home" || trending.length === 0 ? "pt-28" : "pt-8"} pb-16`}>
+      <div className={`${activeNav !== "Home" || trending.length === 0 ? "pt-24 sm:pt-28" : "pt-6 sm:pt-8"} pb-16`}>
         {user && continueWatching.length > 0 && activeNav === "Home" && (
           <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
         )}
 
         {user && recentlyWatched.length > 0 && activeNav === "Home" && (
-          <section className="mb-10">
-            <div className="px-6 md:px-8 max-w-[1600px] mx-auto mb-4">
-              <h3 className="font-semibold text-base text-foreground tracking-tight">Recently Watched</h3>
+          <section className="mb-8 sm:mb-10">
+            <div className="px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-3 sm:mb-4">
+              <h3 className="font-semibold text-sm sm:text-base text-foreground tracking-tight">Recently Watched</h3>
             </div>
-            <div className="shelf-scroll flex gap-3 overflow-x-auto px-6 md:px-8 max-w-[1600px] mx-auto">
+            <div className="shelf-scroll flex gap-2.5 sm:gap-3 overflow-x-auto px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto">
               {recentlyWatched.map(item => (
                 <button
                   key={item.id}
                   onClick={() => handlePlayDirect(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
-                  className="flex-shrink-0 w-[160px] group focus:outline-none"
+                  className="flex-shrink-0 w-[120px] sm:w-[160px] group focus:outline-none active:scale-[0.97] touch-manipulation"
                 >
                   <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2">
                     {item.poster_path ? (
-                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-meta text-sm">No Image</div>
                     )}
                   </div>
-                  <p className="text-[13px] text-foreground/70 truncate text-left font-medium">{item.title}</p>
+                  <p className="text-[12px] sm:text-[13px] text-foreground/70 truncate text-left font-medium">{item.title}</p>
                 </button>
               ))}
             </div>

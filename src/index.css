@@ -117,18 +117,20 @@
   display: none;
 }
 
-/* Card hover effects */
+/* Card hover effects - desktop only */
 .content-card {
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.content-card:hover {
-  transform: scale(1.08) translateY(-8px);
-  z-index: 10;
-}
+@media (hover: hover) {
+  .content-card:hover {
+    transform: scale(1.08) translateY(-8px);
+    z-index: 10;
+  }
 
-.content-card:hover .card-glow {
-  opacity: 1;
+  .content-card:hover .card-glow {
+    opacity: 1;
+  }
 }
 
 .card-glow {
