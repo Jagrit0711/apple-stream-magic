@@ -37,7 +37,10 @@ export const useWatchHistory = () => {
     enabled: !!user,
   });
 
-  const continueWatching = history.filter(h => h.progress > 0 && h.progress < 90);
+  // Items between 5% and 90% progress = continue watching
+  // Items >= 90% = recently watched (finished)
+  // Items < 5% = just started, also show in continue watching
+  const continueWatching = history.filter(h => h.progress >= 1 && h.progress < 90);
   const recentlyWatched = history.filter(h => h.progress >= 90).slice(0, 10);
 
   const upsertMutation = useMutation({
@@ -53,20 +56,29 @@ export const useWatchHistory = () => {
       episode?: number;
     }) => {
       if (!user) return;
-      await supabase.from("watch_history").upsert(
+      const { error } = await supabase.from("watch_history").upsert(
         {
           user_id: user.id,
-          ...entry,
+          tmdb_id: entry.tmdb_id,
+          media_type: entry.media_type,
+          title: entry.title,
+          poster_path: entry.poster_path,
+          backdrop_path: entry.backdrop_path,
+          progress: entry.progress,
+          duration: entry.duration,
+          season: entry.season ?? null,
+          episode: entry.episode ?? null,
           last_watched_at: new Date().toISOString(),
         },
         { onConflict: "user_id,tmdb_id,media_type" }
       );
+      if (error) console.error("Watch history upsert error:", error);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watch-history"] }),
   });
 
   const trackWatch = useCallback(
-    (item: TMDBMovie, progress = 0, duration: number | null = null, season?: number, episode?: number) => {
+    (item: TMDBMovie, progress = 5, duration: number | null = null, season?: number, episode?: number) => {
       upsertMutation.mutate({
         tmdb_id: item.id,
         media_type: getContentType(item),
@@ -83,25 +95,70 @@ export const useWatchHistory = () => {
   );
 
   // Listen for progress messages from VIDEASY player
+  // Videasy sends postMessage with various formats - handle all of them
   useEffect(() => {
+    if (!user) return;
+
     const handler = (event: MessageEvent) => {
       try {
         const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (data?.id && data?.progress !== undefined && user) {
-          upsertMutation.mutate({
-            tmdb_id: data.id,
-            media_type: data.type || "movie",
-            title: data.title || `Content ${data.id}`,
-            poster_path: null,
-            backdrop_path: null,
-            progress: data.progress,
-            duration: data.duration || null,
-            season: data.season,
-            episode: data.episode,
-          });
+        if (!data || typeof data !== "object") return;
+
+        // Videasy postMessage formats:
+        // { type: "progress", id, progress, duration, season, episode }
+        // { id, progress, type/media_type, title, season, episode }
+        // { event: "timeupdate", currentTime, duration, ... }
+
+        let tmdb_id: number | undefined;
+        let progressPct: number | undefined;
+        let media_type: string = "movie";
+        let title: string | undefined;
+        let duration: number | null = null;
+        let season: number | undefined;
+        let episode: number | undefined;
+
+        // Format 1: videasy standard
+        if (data.id && data.progress !== undefined) {
+          tmdb_id = Number(data.id);
+          progressPct = Number(data.progress);
+          media_type = data.type || data.media_type || "movie";
+          title = data.title;
+          duration = data.duration ? Number(data.duration) : null;
+          season = data.season ? Number(data.season) : undefined;
+          episode = data.episode ? Number(data.episode) : undefined;
         }
-      } catch {}
+        // Format 2: timeupdate event
+        else if (data.event === "timeupdate" && data.currentTime && data.duration) {
+          tmdb_id = data.id ? Number(data.id) : undefined;
+          const pct = (Number(data.currentTime) / Number(data.duration)) * 100;
+          progressPct = Math.round(pct);
+          media_type = data.type || "movie";
+          title = data.title;
+          duration = Number(data.duration);
+          season = data.season ? Number(data.season) : undefined;
+          episode = data.episode ? Number(data.episode) : undefined;
+        }
+
+        if (!tmdb_id || progressPct === undefined || isNaN(tmdb_id) || isNaN(progressPct)) return;
+        if (progressPct < 0 || progressPct > 100) return;
+
+        // Throttle: only update every ~30 seconds worth of change (avoid too many writes)
+        upsertMutation.mutate({
+          tmdb_id,
+          media_type,
+          title: title || `Content ${tmdb_id}`,
+          poster_path: null,
+          backdrop_path: null,
+          progress: Math.round(progressPct),
+          duration,
+          season,
+          episode,
+        });
+      } catch (e) {
+        // Silently ignore parse errors
+      }
     };
+
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }, [user, upsertMutation]);
