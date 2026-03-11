@@ -13,44 +13,19 @@ interface VideoPlayerProps {
 const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Lock orientation to landscape on mobile
   useEffect(() => {
     if (!contentId) return;
     const lock = async () => {
       try { await (screen.orientation as any)?.lock?.("landscape"); } catch {}
     };
     lock();
-    return () => {
-      try { (screen.orientation as any)?.unlock?.(); } catch {}
-    };
+    return () => { try { (screen.orientation as any)?.unlock?.(); } catch {} };
   }, [contentId]);
 
-  // Prevent body scroll while player is open
   useEffect(() => {
     if (!contentId) return;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
-  }, [contentId]);
-
-  // Block any window.open calls that slip through (belt + suspenders)
-  useEffect(() => {
-    if (!contentId) return;
-    const originalOpen = window.open;
-    window.open = (url?: string | URL, target?: string, ...rest: any[]) => {
-      const ALLOWED = ["zuup.dev", "videasy.net", "localhost"];
-      try {
-        const parsed = new URL(url?.toString() || "");
-        const allowed = ALLOWED.some(d =>
-          parsed.hostname === d || parsed.hostname.endsWith("." + d)
-        );
-        if (!allowed) {
-          console.warn("[AdBlock] window.open blocked:", url);
-          return null;
-        }
-      } catch {}
-      return originalOpen.call(window, url, target, ...rest);
-    };
-    return () => { window.open = originalOpen; };
   }, [contentId]);
 
   const handleClose = useCallback((e?: React.MouseEvent) => {
@@ -60,7 +35,9 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
 
   if (!contentId) return null;
 
-  let src = `https://player.videasy.net/${type}/${contentId}`;
+  // Route through Vercel Edge Function proxy instead of directly to player.videasy.net
+  // This lets us apply sandbox attribute without Videasy detecting it
+  let src = `/api/proxy/${type}/${contentId}`;
   if (type === "tv" && season && episode) {
     src += `/${season}/${episode}`;
   }
@@ -76,7 +53,6 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
         >
-          {/* Back button */}
           <button
             onClick={handleClose}
             className="absolute z-[90] flex items-center gap-1 px-3 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white/90 active:scale-95 transition-all touch-manipulation"
@@ -89,7 +65,6 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
             <span className="text-xs font-medium sm:text-sm">Back</span>
           </button>
 
-          {/* Player - full screen, no overlay blocking it */}
           <iframe
             ref={iframeRef}
             src={src}
@@ -97,6 +72,9 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             allowFullScreen
             allow="encrypted-media; fullscreen; autoplay"
+            // allow-popups is intentionally missing — this is what kills the ad redirect
+            // Works without Videasy detecting it because src is now our own domain (/api/proxy/...)
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-orientation-lock allow-fullscreen"
           />
         </motion.div>
       )}
