@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, User, LogOut } from "lucide-react";
+import { Search, User, LogOut, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -16,6 +16,7 @@ const NAV_ITEMS = ["Home", "Movies", "TV Shows", "Anime"];
 const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }: HeaderProps) => {
   const { user, profile, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -31,9 +32,18 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
           ? "bg-background/95 border-b border-[hsla(0,0%,100%,0.04)]"
           : "bg-gradient-to-b from-background via-background/60 to-transparent"
       }`}
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
     >
-      <div className="flex items-center justify-between px-6 md:px-8 py-4 max-w-[1600px] mx-auto">
-        <div className="flex items-center gap-8">
+      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-3 sm:py-4 max-w-[1600px] mx-auto">
+        <div className="flex items-center gap-4 sm:gap-8">
+          {/* Mobile menu toggle */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-full text-meta hover:text-foreground transition-all touch-manipulation"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+
           <div className="flex items-baseline gap-0">
             <span className="font-semibold text-lg tracking-tight text-foreground">Watch</span>
             <span className="text-[10px] font-medium text-meta ml-1.5 tracking-wider uppercase">by zuup</span>
@@ -56,18 +66,18 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
           </nav>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <button
-              onClick={onSearchClick}
-              className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300"
-            >
-              <Search size={18} />
-            </button>
+            onClick={onSearchClick}
+            className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300 touch-manipulation"
+          >
+            <Search size={18} />
+          </button>
 
           <div className="relative">
             <button
               onClick={() => user ? setMenuOpen(!menuOpen) : onAuthClick()}
-              className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300"
+              className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300 touch-manipulation"
             >
               <User size={18} />
             </button>
@@ -86,7 +96,7 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
                   </div>
                   <button
                     onClick={() => { signOut(); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-meta hover:text-foreground hover:bg-surface transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-meta hover:text-foreground hover:bg-surface transition-colors touch-manipulation"
                   >
                     <LogOut size={14} /> Sign Out
                   </button>
@@ -96,6 +106,35 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
           </div>
         </div>
       </div>
+
+      {/* Mobile navigation drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.nav
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="md:hidden overflow-hidden border-t border-border bg-background/95"
+          >
+            <div className="flex flex-col px-4 py-2">
+              {NAV_ITEMS.map((item) => (
+                <button
+                  key={item}
+                  onClick={() => { onNavChange(item); setMobileMenuOpen(false); }}
+                  className={`py-3 px-3 text-left text-sm font-medium rounded-lg transition-all touch-manipulation ${
+                    activeNav === item
+                      ? "text-foreground bg-surface"
+                      : "text-meta hover:text-foreground"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
     </header>
   );
 };

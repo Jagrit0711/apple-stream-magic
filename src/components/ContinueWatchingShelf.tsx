@@ -20,10 +20,10 @@ const ContinueWatchingShelf = ({ items, onPlay }: ContinueWatchingShelfProps) =>
   if (!items.length) return null;
 
   return (
-    <section className="mb-10">
-      <div className="flex items-center justify-between px-6 md:px-8 max-w-[1600px] mx-auto mb-4">
-        <h3 className="font-semibold text-base text-foreground tracking-tight">Continue Watching</h3>
-        <div className="flex gap-1">
+    <section className="mb-8 sm:mb-10">
+      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-3 sm:mb-4">
+        <h3 className="font-semibold text-sm sm:text-base text-foreground tracking-tight">Continue Watching</h3>
+        <div className="hidden sm:flex gap-1">
           <button onClick={() => scroll("left")} className="p-2 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all">
             <ChevronLeft size={18} />
           </button>
@@ -32,14 +32,14 @@ const ContinueWatchingShelf = ({ items, onPlay }: ContinueWatchingShelfProps) =>
           </button>
         </div>
       </div>
-      <div ref={scrollRef} className="shelf-scroll flex gap-3 overflow-x-auto px-6 md:px-8 max-w-[1600px] mx-auto">
+      <div ref={scrollRef} className="shelf-scroll flex gap-3 overflow-x-auto px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto snap-x snap-mandatory">
         {items.map(item => {
           const backdrop = img(item.backdrop_path || item.poster_path, "w780");
           return (
             <button
               key={item.id}
               onClick={() => onPlay(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
-              className="flex-shrink-0 w-[280px] group focus:outline-none"
+              className="flex-shrink-0 w-[220px] sm:w-[280px] group focus:outline-none snap-start active:scale-[0.98] touch-manipulation"
             >
               <div className="relative aspect-video rounded-xl overflow-hidden bg-surface mb-2">
                 {backdrop ? (
@@ -56,9 +56,9 @@ const ContinueWatchingShelf = ({ items, onPlay }: ContinueWatchingShelfProps) =>
                   <div className="h-full bg-accent rounded-full" style={{ width: `${item.progress}%` }} />
                 </div>
               </div>
-              <p className="text-[13px] text-foreground/70 truncate text-left font-medium">{item.title}</p>
+              <p className="text-[12px] sm:text-[13px] text-foreground/70 truncate text-left font-medium">{item.title}</p>
               {item.season && item.episode && (
-                <p className="text-[11px] text-meta text-left">S{item.season} E{item.episode}</p>
+                <p className="text-[10px] sm:text-[11px] text-meta text-left">S{item.season} E{item.episode}</p>
               )}
             </button>
           );
