@@ -1,6 +1,9 @@
-import { initAdBlocker } from "./lib/adBlocker";
+// Register service worker ad blocker FIRST — intercepts ALL network requests including from iframes
+import { registerAdBlockSW } from "./lib/registerSW";
+registerAdBlockSW();
 
-// Initialize FIRST - before any React, before any iframes
+// JS-level second layer
+import { initAdBlocker } from "./lib/adBlocker";
 initAdBlocker();
 
 import { createRoot } from "react-dom/client";
