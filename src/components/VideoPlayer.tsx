@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 
 interface VideoPlayerProps {
   contentId: number | null;
@@ -11,7 +11,35 @@ interface VideoPlayerProps {
 }
 
 const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerProps) => {
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Lock orientation to landscape on mobile when playing
+  useEffect(() => {
+    if (!contentId) return;
+    const lockOrientation = async () => {
+      try {
+        await (screen.orientation as any)?.lock?.("landscape");
+      } catch {}
+    };
+    lockOrientation();
+    return () => {
+      try {
+        (screen.orientation as any)?.unlock?.();
+      } catch {}
+    };
+  }, [contentId]);
+
+  // Prevent body scroll
+  useEffect(() => {
+    if (!contentId) return;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [contentId]);
+
+  const handleClose = useCallback((e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    onClose();
+  }, [onClose]);
 
   if (!contentId) return null;
 
@@ -19,7 +47,7 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
   if (type === "tv" && season && episode) {
     src += `/${season}/${episode}`;
   }
-  src += "?color=3B82F6&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true";
+  src += "?color=E11D48&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true";
 
   return (
     <AnimatePresence>
@@ -29,55 +57,30 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.4 }}
-          onClick={() => setControlsVisible(v => !v)}
+          transition={{ duration: 0.3 }}
         >
-          {/* Top bar with back button - safe area aware */}
-          <AnimatePresence>
-            {controlsVisible && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="absolute top-0 left-0 right-0 z-[80] bg-gradient-to-b from-background/80 to-transparent pb-8 pt-[env(safe-area-inset-top,12px)] px-[env(safe-area-inset-left,8px)]"
-              >
-                <button
-                  onClick={(e) => { e.stopPropagation(); onClose(); }}
-                  className="flex items-center gap-1.5 ml-2 mt-2 p-2.5 rounded-full bg-surface/60 backdrop-blur-sm text-foreground/80 hover:text-foreground active:scale-95 transition-all touch-manipulation"
-                >
-                  <ChevronLeft size={22} />
-                  <span className="text-sm font-medium pr-2 hidden sm:inline">Back</span>
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Close button top-right for desktop */}
-          <AnimatePresence>
-            {controlsVisible && (
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={(e) => { e.stopPropagation(); onClose(); }}
-                className="absolute top-4 right-4 z-[80] p-3 rounded-full bg-surface/60 backdrop-blur-sm text-foreground/80 hover:text-foreground transition-all hidden sm:block"
-                style={{ top: "calc(env(safe-area-inset-top, 12px) + 8px)", right: "calc(env(safe-area-inset-right, 8px) + 8px)" }}
-              >
-                <X size={22} />
-              </motion.button>
-            )}
-          </AnimatePresence>
+          {/* Back button - always visible, Netflix-style */}
+          <button
+            onClick={handleClose}
+            className="absolute top-3 left-3 z-[80] flex items-center gap-1 px-3 py-2 rounded-full bg-background/60 backdrop-blur-sm text-foreground/90 active:scale-95 transition-all touch-manipulation"
+            style={{
+              top: "calc(env(safe-area-inset-top, 8px) + 4px)",
+              left: "calc(env(safe-area-inset-left, 8px) + 4px)",
+            }}
+          >
+            <ChevronLeft size={20} />
+            <span className="text-xs font-medium sm:text-sm">Back</span>
+          </button>
 
           <iframe
+            ref={iframeRef}
             src={src}
-            className="w-full h-full"
+            className="w-full h-full border-0"
             style={{
               paddingBottom: "env(safe-area-inset-bottom, 0px)",
             }}
-            frameBorder="0"
             allowFullScreen
-            allow="encrypted-media; fullscreen"
+            allow="encrypted-media; fullscreen; autoplay"
           />
         </motion.div>
       )}
