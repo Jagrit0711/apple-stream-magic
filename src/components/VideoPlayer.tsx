@@ -10,99 +10,69 @@ interface VideoPlayerProps {
   onClose: () => void;
 }
 
-const ALLOWED_DOMAIN = "zuup.dev";
+const ALLOWED_DOMAINS = ["zuup.dev", "player.videasy.net", "videasy.net", "localhost"];
+
+const isAllowed = (url: string) => {
+  try {
+    const parsed = new URL(url, window.location.href);
+    // Allow relative URLs and same origin
+    if (parsed.origin === window.location.origin) return true;
+    return ALLOWED_DOMAINS.some(
+      d => parsed.hostname === d || parsed.hostname.endsWith("." + d)
+    );
+  } catch {
+    return true;
+  }
+};
 
 const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Block external redirects - intercept any navigation away from zuup.dev
+  // Smart redirect/popup blocking - no sandbox needed
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Check if we're being navigated away
-      e.preventDefault();
+    // 1. Override window.open to kill external popups from ads/players
+    const originalOpen = window.open.bind(window);
+    window.open = (url?: string | URL, target?: string, features?: string) => {
+      if (url && !isAllowed(url.toString())) {
+        console.warn("[Watch] Blocked popup:", url);
+        return null;
+      }
+      return originalOpen(url, target, features);
     };
 
-    // Intercept clicks that might navigate away
+    // 2. Block anchor clicks navigating to external domains
     const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const anchor = target.closest("a");
-      if (anchor) {
-        const href = anchor.href;
-        if (href) {
-          try {
-            const url = new URL(href);
-            if (!url.hostname.endsWith(ALLOWED_DOMAIN) && url.hostname !== ALLOWED_DOMAIN) {
-              e.preventDefault();
-              e.stopPropagation();
-              console.warn("Blocked external navigation to:", href);
-              return false;
-            }
-          } catch {}
-        }
-      }
-    };
-
-    // Block window.open calls to external domains
-    const originalOpen = window.open;
-    window.open = (url?: string | URL, ...args: any[]) => {
-      if (url) {
-        try {
-          const parsed = new URL(url.toString(), window.location.href);
-          if (!parsed.hostname.endsWith(ALLOWED_DOMAIN) && parsed.hostname !== ALLOWED_DOMAIN) {
-            console.warn("Blocked window.open to:", url);
-            return null;
-          }
-        } catch {}
-      }
-      return originalOpen(url, ...args);
-    };
-
-    // Block location.href assignments to external domains via MutationObserver on iframes
-    const handleMessage = (event: MessageEvent) => {
-      // Block messages trying to navigate parent
-      if (event.data && typeof event.data === "object") {
-        if (event.data.type === "navigate" || event.data.action === "redirect") {
-          const url = event.data.url || event.data.href;
-          if (url) {
-            try {
-              const parsed = new URL(url, window.location.href);
-              if (!parsed.hostname.endsWith(ALLOWED_DOMAIN) && parsed.hostname !== ALLOWED_DOMAIN) {
-                console.warn("Blocked redirect message to:", url);
-                return;
-              }
-            } catch {}
-          }
-        }
+      const anchor = (e.target as Element).closest("a");
+      if (!anchor) return;
+      const href = anchor.href || anchor.getAttribute("href") || "";
+      if (href && !isAllowed(href)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        console.warn("[Watch] Blocked link navigation:", href);
       }
     };
 
     document.addEventListener("click", handleClick, true);
-    window.addEventListener("message", handleMessage);
 
     return () => {
-      document.removeEventListener("click", handleClick, true);
-      window.removeEventListener("message", handleMessage);
       window.open = originalOpen;
+      document.removeEventListener("click", handleClick, true);
     };
   }, []);
 
-  // Lock orientation to landscape on mobile when playing
+  // Lock orientation to landscape on mobile
   useEffect(() => {
     if (!contentId) return;
-    const lockOrientation = async () => {
-      try {
-        await (screen.orientation as any)?.lock?.("landscape");
-      } catch {}
+    const lock = async () => {
+      try { await (screen.orientation as any)?.lock?.("landscape"); } catch {}
     };
-    lockOrientation();
+    lock();
     return () => {
-      try {
-        (screen.orientation as any)?.unlock?.();
-      } catch {}
+      try { (screen.orientation as any)?.unlock?.(); } catch {}
     };
   }, [contentId]);
 
-  // Prevent body scroll
+  // Prevent body scroll while player is open
   useEffect(() => {
     if (!contentId) return;
     document.body.style.overflow = "hidden";
@@ -132,10 +102,10 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {/* Back button - always visible, Netflix-style */}
+          {/* Back button */}
           <button
             onClick={handleClose}
-            className="absolute top-3 left-3 z-[80] flex items-center gap-1 px-3 py-2 rounded-full bg-background/60 backdrop-blur-sm text-foreground/90 active:scale-95 transition-all touch-manipulation"
+            className="absolute z-[80] flex items-center gap-1 px-3 py-2 rounded-full bg-background/60 backdrop-blur-sm text-foreground/90 active:scale-95 transition-all touch-manipulation"
             style={{
               top: "calc(env(safe-area-inset-top, 8px) + 4px)",
               left: "calc(env(safe-area-inset-left, 8px) + 4px)",
@@ -149,12 +119,9 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
             ref={iframeRef}
             src={src}
             className="w-full h-full border-0"
-            style={{
-              paddingBottom: "env(safe-area-inset-bottom, 0px)",
-            }}
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             allowFullScreen
             allow="encrypted-media; fullscreen; autoplay"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-fullscreen"
           />
         </motion.div>
       )}
