@@ -28,6 +28,7 @@ import SearchOverlay from "@/components/SearchOverlay";
 import ContinueWatchingShelf from "@/components/ContinueWatchingShelf";
 import AuthModal from "@/components/AuthModal";
 import Onboarding from "@/components/Onboarding";
+import MobileNavBar from "@/components/MobileNavBar";
 
 const Index = () => {
   const { user, profile } = useAuth();
@@ -150,7 +151,8 @@ const Index = () => {
         <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />
       )}
 
-      <div className={`${activeNav !== "Home" || trending.length === 0 ? "pt-24 sm:pt-28" : "pt-6 sm:pt-8"} pb-16`}>
+      {/* Main content - add bottom padding for mobile nav */}
+      <div className={`${activeNav !== "Home" || trending.length === 0 ? "pt-24 sm:pt-28" : "pt-6 sm:pt-8"} pb-24 md:pb-16`}>
         {user && continueWatching.length > 0 && activeNav === "Home" && (
           <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
         )}
@@ -200,6 +202,14 @@ const Index = () => {
 
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={handleSelect} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+
+      {/* Mobile bottom nav */}
+      <MobileNavBar
+        activeNav={activeNav}
+        onNavChange={setActiveNav}
+        onSearchClick={() => setSearchOpen(true)}
+        onAuthClick={() => setAuthOpen(true)}
+      />
     </div>
   );
 };
