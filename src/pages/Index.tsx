@@ -74,13 +74,35 @@ const Index = () => {
   const anime = animeData?.results || [];
 
   const handleSelect = (item: TMDBMovie) => setSelectedItem(item);
+
   const handlePlay = (item: TMDBMovie) => {
     const type = getContentType(item);
-    trackWatch(item, 0, null, type === "tv" ? 1 : undefined, type === "tv" ? 1 : undefined);
-    setPlayer({ id: item.id, type, season: type === "tv" ? 1 : undefined, episode: type === "tv" ? 1 : undefined });
+    const season = type === "tv" ? 1 : undefined;
+    const episode = type === "tv" ? 1 : undefined;
+    // Track immediately with progress=5 so it shows in Continue Watching right away
+    trackWatch(item, 5, null, season, episode);
+    setPlayer({ id: item.id, type, season, episode });
   };
+
   const handlePlayDirect = (id: number, type: "movie" | "tv", season?: number, episode?: number) => {
     setSelectedItem(null);
+    // Find the item in history or trending to track it
+    const existingHistory = history.find(h => h.tmdb_id === id && h.media_type === type);
+    if (!existingHistory) {
+      // Track a stub entry so it appears in continue watching
+      const allItems = [...trending, ...trendingDay, ...movies, ...tvShows, ...anime, ...nowPlaying, ...topRatedMovies, ...popularTV];
+      const found = allItems.find(i => i.id === id);
+      if (found) {
+        trackWatch(found, 5, null, season, episode);
+      }
+    } else {
+      // Refresh last_watched_at
+      if (existingHistory.progress < 90) {
+        // Update last_watched_at by re-upsert with same progress
+        const found = [...trending, ...movies, ...tvShows].find(i => i.id === id);
+        if (found) trackWatch(found, existingHistory.progress, existingHistory.duration, season, episode);
+      }
+    }
     setPlayer({ id, type, season, episode });
   };
 
