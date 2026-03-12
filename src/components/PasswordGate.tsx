@@ -13,7 +13,7 @@ const PasswordGate = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === "true") setUnlocked(true);
     setLoading(false);
   }, []);
