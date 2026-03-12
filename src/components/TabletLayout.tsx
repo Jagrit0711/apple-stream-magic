@@ -62,8 +62,8 @@ const Sidebar = ({
   user, profile, onSignOut, canInstall, onInstall
 }: Omit<TabletLayoutProps, "trending" | "shelves" | "continueWatching" | "onSelect" | "onPlay">) => {
   const [profileOpen, setProfileOpen] = useState(false);
-
-  return (
+  const navigate = useNavigate();
+  const location = useLocation();
     <aside className="tablet-sidebar flex flex-col h-full py-6 px-3 select-none">
       {/* Logo */}
       <div className="px-3 mb-8">
