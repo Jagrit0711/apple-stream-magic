@@ -21,7 +21,7 @@ const PasswordGate = ({ children }: { children: React.ReactNode }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password === SITE_PASSWORD) {
-      sessionStorage.setItem(STORAGE_KEY, "true");
+      localStorage.setItem(STORAGE_KEY, "true");
       setUnlocked(true);
     } else {
       setError(true);
