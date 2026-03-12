@@ -44,10 +44,10 @@ interface TabletLayoutProps {
 }
 
 const NAV_ITEMS = [
-  { key: "Home",     icon: Home,     label: "Home" },
-  { key: "Movies",   icon: Film,     label: "Movies" },
-  { key: "TV Shows", icon: Tv,       label: "TV Shows" },
-  { key: "Anime",    icon: Sparkles, label: "Anime" },
+  { key: "Home",     path: "/",       icon: Home,     label: "Home" },
+  { key: "Movies",   path: "/movies", icon: Film,     label: "Movies" },
+  { key: "TV Shows", path: "/tv",     icon: Tv,       label: "TV Shows" },
+  { key: "Anime",    path: "/anime",  icon: Sparkles, label: "Anime" },
 ];
 
 const img = (path: string | null, size = "w500") =>
