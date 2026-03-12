@@ -70,9 +70,6 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             allowFullScreen
             allow="encrypted-media; fullscreen; autoplay"
-            // allow-popups is intentionally missing — this is what kills the ad redirect
-            // Works without Videasy detecting it because src is now our own domain (/api/proxy/...)
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-orientation-lock allow-fullscreen"
           />
         </motion.div>
       )}
