@@ -1,4 +1,5 @@
 import { Home, Film, Tv, Search, User, Sparkles, Download } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 
@@ -10,22 +11,29 @@ interface MobileNavBarProps {
 }
 
 const NAV_ITEMS = [
-  { key: "Home", icon: Home, label: "Home" },
-  { key: "Movies", icon: Film, label: "Movies" },
-  { key: "TV Shows", icon: Tv, label: "TV" },
-  { key: "Anime", icon: Sparkles, label: "Anime" },
-  { key: "search", icon: Search, label: "Search" },
+  { key: "Home", path: "/", icon: Home, label: "Home" },
+  { key: "Movies", path: "/movies", icon: Film, label: "Movies" },
+  { key: "TV Shows", path: "/tv", icon: Tv, label: "TV" },
+  { key: "Anime", path: "/anime", icon: Sparkles, label: "Anime" },
+  { key: "search", path: "", icon: Search, label: "Search" },
 ];
 
 const MobileNavBar = ({ activeNav, onNavChange, onSearchClick, onAuthClick }: MobileNavBarProps) => {
   const { user } = useAuth();
   const { canInstall, promptInstall } = useInstallPrompt();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleTap = (key: string) => {
+  const getActive = (key: string, path: string) => {
+    if (key === "search") return false;
+    return location.pathname === path;
+  };
+
+  const handleTap = (key: string, path: string) => {
     if (key === "search") {
       onSearchClick();
     } else {
-      onNavChange(key);
+      navigate(path);
     }
   };
 
@@ -35,12 +43,12 @@ const MobileNavBar = ({ activeNav, onNavChange, onSearchClick, onAuthClick }: Mo
       style={{ paddingBottom: "env(safe-area-inset-bottom, 8px)" }}
     >
       <div className="flex items-center justify-around px-2 pt-1.5 pb-1">
-        {NAV_ITEMS.map(({ key, icon: Icon, label }) => (
+        {NAV_ITEMS.map(({ key, path, icon: Icon, label }) => (
           <button
             key={key}
-            onClick={() => handleTap(key)}
+            onClick={() => handleTap(key, path)}
             className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg touch-manipulation transition-colors ${
-              activeNav === key ? "text-accent" : "text-meta"
+              getActive(key, path) ? "text-accent" : "text-meta"
             }`}
           >
             <Icon size={20} />
@@ -57,7 +65,7 @@ const MobileNavBar = ({ activeNav, onNavChange, onSearchClick, onAuthClick }: Mo
           </button>
         )}
         <button
-          onClick={() => user ? onAuthClick() : onAuthClick()}
+          onClick={onAuthClick}
           className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg touch-manipulation text-meta"
         >
           <User size={20} />

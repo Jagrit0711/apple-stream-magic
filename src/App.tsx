@@ -6,6 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import PasswordGate from "@/components/PasswordGate";
 import Index from "./pages/Index.tsx";
+import Movies from "./pages/Movies.tsx";
+import TVShows from "./pages/TVShows.tsx";
+import Anime from "./pages/Anime.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -20,6 +23,9 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/movies" element={<Movies />} />
+              <Route path="/tv" element={<TVShows />} />
+              <Route path="/anime" element={<Anime />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
