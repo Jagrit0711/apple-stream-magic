@@ -35,9 +35,7 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
 
   if (!contentId) return null;
 
-  // Route through Vercel Edge Function proxy instead of directly to player.videasy.net
-  // This lets us apply sandbox attribute without Videasy detecting it
-  let src = `/api/proxy/${type}/${contentId}`;
+  let src = `https://player.videasy.net/${type}/${contentId}`;
   if (type === "tv" && season && episode) {
     src += `/${season}/${episode}`;
   }
