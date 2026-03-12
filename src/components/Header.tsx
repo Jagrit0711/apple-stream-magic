@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, User, LogOut, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 
@@ -12,13 +13,20 @@ interface HeaderProps {
   onSearchClick?: () => void;
 }
 
-const NAV_ITEMS = ["Home", "Movies", "TV Shows", "Anime"];
+const NAV_ITEMS = [
+  { label: "Home", path: "/" },
+  { label: "Movies", path: "/movies" },
+  { label: "TV Shows", path: "/tv" },
+  { label: "Anime", path: "/anime" },
+];
 
 const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }: HeaderProps) => {
   const { user, profile, signOut } = useAuth();
   const { canInstall, promptInstall } = useInstallPrompt();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
@@ -42,26 +50,24 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
             <span className="text-[10px] font-medium text-meta ml-1.5 tracking-wider uppercase">by zuup</span>
           </div>
 
-          {/* Desktop nav only */}
           <nav className="hidden md:flex items-center gap-1">
             {NAV_ITEMS.map((item) => (
               <button
-                key={item}
-                onClick={() => onNavChange(item)}
+                key={item.label}
+                onClick={() => navigate(item.path)}
                 className={`relative px-4 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300 ${
-                  activeNav === item
+                  location.pathname === item.path
                     ? "text-foreground bg-[hsla(0,0%,100%,0.08)]"
                     : "text-meta hover:text-foreground"
                 }`}
               >
-                {item}
+                {item.label}
               </button>
             ))}
           </nav>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Search - visible on all */}
           <button
             onClick={onSearchClick}
             className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300 touch-manipulation hidden md:flex"
@@ -69,7 +75,6 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
             <Search size={18} />
           </button>
 
-          {/* Install button - desktop only */}
           {canInstall && (
             <button
               onClick={promptInstall}
@@ -81,7 +86,6 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
             </button>
           )}
 
-          {/* Profile */}
           <div className="relative hidden md:block">
             <button
               onClick={() => user ? setMenuOpen(!menuOpen) : onAuthClick()}
