@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   TMDBMovie,
-  getContentType,
   fetchTrending,
   fetchPopularMovies,
   fetchTopRatedTV,
@@ -12,14 +12,13 @@ import {
   fetchTopRatedMovies,
   fetchAiringTodayTV,
   fetchPopularTV,
-  fetchOnTheAirTV,
   fetchTrendingDay,
   fetchMoviesByGenre,
 } from "@/lib/tmdb";
 import { useAuth } from "@/hooks/useAuth";
 import { useWatchHistory } from "@/hooks/useWatchHistory";
 import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
-import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { useContentActions } from "@/hooks/useContentActions";
 import Header from "@/components/Header";
 import FeaturedHero from "@/components/FeaturedHero";
 import ContentShelf from "@/components/ContentShelf";
@@ -33,20 +32,9 @@ import MobileNavBar from "@/components/MobileNavBar";
 import TabletLayout from "@/components/TabletLayout";
 
 const Index = () => {
-  const { user, profile, signOut } = useAuth();
-  const { continueWatching, recentlyWatched, history, trackWatch } = useWatchHistory();
+  const { user, profile } = useAuth();
+  const { continueWatching, recentlyWatched, history } = useWatchHistory();
   const { recommendations } = useSmartRecommendations(history);
-  const { canInstall, promptInstall } = useInstallPrompt();
-  const [activeNav, setActiveNav] = useState("Home");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<TMDBMovie | null>(null);
-  const [authOpen, setAuthOpen] = useState(false);
-  const [player, setPlayer] = useState<{
-    id: number;
-    type: "movie" | "tv";
-    season?: number;
-    episode?: number;
-  } | null>(null);
 
   const { data: trending = [] } = useQuery({ queryKey: ["trending"], queryFn: fetchTrending });
   const { data: trendingDay = [] } = useQuery({ queryKey: ["trending-day"], queryFn: fetchTrendingDay });
@@ -58,7 +46,10 @@ const Index = () => {
   const { data: topRatedMovies = [] } = useQuery({ queryKey: ["top-rated-movies"], queryFn: fetchTopRatedMovies });
   const { data: airingToday = [] } = useQuery({ queryKey: ["airing-today"], queryFn: fetchAiringTodayTV });
   const { data: popularTV = [] } = useQuery({ queryKey: ["popular-tv"], queryFn: fetchPopularTV });
-  const { data: onTheAir = [] } = useQuery({ queryKey: ["on-the-air"], queryFn: fetchOnTheAirTV });
+
+  const movies = moviesData?.results || [];
+  const tvShows = tvData?.results || [];
+  const anime = animeData?.results || [];
 
   const favoriteGenres = profile?.favorite_genres || [];
   const { data: genreMovies1 = [] } = useQuery({
@@ -72,30 +63,12 @@ const Index = () => {
     enabled: favoriteGenres.length > 1,
   });
 
-  const movies = moviesData?.results || [];
-  const tvShows = tvData?.results || [];
-  const anime = animeData?.results || [];
+  const allItems = [...trending, ...trendingDay, ...movies, ...tvShows, ...anime, ...nowPlaying, ...topRatedMovies, ...popularTV];
 
-  const handleSelect = (item: TMDBMovie) => setSelectedItem(item);
-
-  const handlePlay = (item: TMDBMovie) => {
-    const type = getContentType(item);
-    const season = type === "tv" ? 1 : undefined;
-    const episode = type === "tv" ? 1 : undefined;
-    trackWatch(item, 5, null, season, episode);
-    setPlayer({ id: item.id, type, season, episode });
-  };
-
-  const handlePlayDirect = (id: number, type: "movie" | "tv", season?: number, episode?: number) => {
-    setSelectedItem(null);
-    const existingHistory = history.find(h => h.tmdb_id === id && h.media_type === type);
-    if (!existingHistory) {
-      const allItems = [...trending, ...trendingDay, ...movies, ...tvShows, ...anime, ...nowPlaying, ...topRatedMovies, ...popularTV];
-      const found = allItems.find(i => i.id === id);
-      if (found) trackWatch(found, 5, null, season, episode);
-    }
-    setPlayer({ id, type, season, episode });
-  };
+  const {
+    selectedItem, setSelectedItem, player, setPlayer, searchOpen, setSearchOpen,
+    authOpen, setAuthOpen, handleSelect, handlePlay, handlePlayDirect,
+  } = useContentActions(allItems);
 
   const genreNameById = (id: number) => {
     const genres: Record<number, string> = { 28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime", 99: "Documentary", 18: "Drama", 14: "Fantasy", 27: "Horror", 10749: "Romance", 878: "Sci-Fi", 53: "Thriller" };
@@ -103,21 +76,6 @@ const Index = () => {
   };
 
   const shelves = useMemo(() => {
-    if (activeNav === "Movies") return [
-      { title: "Now Playing", items: nowPlaying },
-      { title: "Popular Movies", items: movies },
-      { title: "Top Rated", items: topRatedMovies },
-      { title: "Upcoming", items: upcoming },
-    ];
-    if (activeNav === "TV Shows") return [
-      { title: "Airing Today", items: airingToday },
-      { title: "Popular TV", items: popularTV },
-      { title: "Top Rated TV", items: tvShows },
-      { title: "On The Air", items: onTheAir },
-    ];
-    if (activeNav === "Anime") return [
-      { title: "Popular Anime", items: anime },
-    ];
     const s: { title: string; items: TMDBMovie[] }[] = [
       { title: "Trending Today", items: trendingDay.slice(0, 20) },
       { title: "Trending This Week", items: trending.slice(1, 20) },
@@ -144,21 +102,12 @@ const Index = () => {
       { title: "Anime", items: anime },
     );
     return s;
-  }, [activeNav, trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, onTheAir, genreMovies1, genreMovies2, favoriteGenres, recommendations]);
+  }, [trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, genreMovies1, genreMovies2, favoriteGenres, recommendations]);
 
-  // Shared overlays (work across all layouts)
   const overlays = (
     <>
       <DetailView item={selectedItem} onClose={() => setSelectedItem(null)} onPlay={handlePlayDirect} />
-      {player && (
-        <VideoPlayer
-          contentId={player.id}
-          type={player.type}
-          season={player.season}
-          episode={player.episode}
-          onClose={() => setPlayer(null)}
-        />
-      )}
+      {player && <VideoPlayer contentId={player.id} type={player.type} season={player.season} episode={player.episode} onClose={() => setPlayer(null)} />}
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={handleSelect} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </>
@@ -168,10 +117,9 @@ const Index = () => {
     <>
       {user && <Onboarding />}
 
-      {/* ── TABLET LAYOUT (768–1199px) ── */}
       <TabletLayout
-        activeNav={activeNav}
-        onNavChange={setActiveNav}
+        activeNav="Home"
+        onNavChange={() => {}}
         trending={trending}
         shelves={shelves}
         continueWatching={continueWatching}
@@ -181,31 +129,16 @@ const Index = () => {
         onAuthClick={() => setAuthOpen(true)}
         user={user}
         profile={profile}
-        onSignOut={signOut}
-        canInstall={canInstall}
-        onInstall={promptInstall}
       />
 
-      {/* ── MOBILE + DESKTOP LAYOUT (existing) ── */}
       <div className="mobile-layout-wrapper min-h-screen bg-background overflow-x-hidden">
-        <Header
-          onSearch={() => {}}
-          onNavChange={setActiveNav}
-          activeNav={activeNav}
-          onAuthClick={() => setAuthOpen(true)}
-          onSearchClick={() => setSearchOpen(true)}
-        />
-
-        {activeNav === "Home" && trending.length > 0 && (
-          <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />
-        )}
-
-        <div className={`${activeNav !== "Home" || trending.length === 0 ? "pt-24 sm:pt-28" : "pt-6 sm:pt-8"} pb-24 md:pb-16`}>
-          {user && continueWatching.length > 0 && activeNav === "Home" && (
+        <Header onSearch={() => {}} onNavChange={() => {}} activeNav="Home" onAuthClick={() => setAuthOpen(true)} onSearchClick={() => setSearchOpen(true)} />
+        {trending.length > 0 && <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />}
+        <div className={`${trending.length > 0 ? "pt-6 sm:pt-8" : "pt-24 sm:pt-28"} pb-24 md:pb-16`}>
+          {user && continueWatching.length > 0 && (
             <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
           )}
-
-          {user && recentlyWatched.length > 0 && activeNav === "Home" && (
+          {user && recentlyWatched.length > 0 && (
             <section className="mb-8 sm:mb-10">
               <div className="px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-3 sm:mb-4">
                 <h3 className="font-semibold text-sm sm:text-base text-foreground tracking-tight">Recently Watched</h3>
@@ -230,18 +163,11 @@ const Index = () => {
               </div>
             </section>
           )}
-
           {shelves.map(({ title, items }) => (
             <ContentShelf key={title} title={title} items={items} onSelect={handleSelect} />
           ))}
         </div>
-
-        <MobileNavBar
-          activeNav={activeNav}
-          onNavChange={setActiveNav}
-          onSearchClick={() => setSearchOpen(true)}
-          onAuthClick={() => setAuthOpen(true)}
-        />
+        <MobileNavBar activeNav="Home" onNavChange={() => {}} onSearchClick={() => setSearchOpen(true)} onAuthClick={() => setAuthOpen(true)} />
       </div>
 
       {overlays}
