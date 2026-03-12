@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Film, Tv, Sparkles, Search, User, LogOut,
@@ -43,10 +44,10 @@ interface TabletLayoutProps {
 }
 
 const NAV_ITEMS = [
-  { key: "Home",     icon: Home,     label: "Home" },
-  { key: "Movies",   icon: Film,     label: "Movies" },
-  { key: "TV Shows", icon: Tv,       label: "TV Shows" },
-  { key: "Anime",    icon: Sparkles, label: "Anime" },
+  { key: "Home",     path: "/",       icon: Home,     label: "Home" },
+  { key: "Movies",   path: "/movies", icon: Film,     label: "Movies" },
+  { key: "TV Shows", path: "/tv",     icon: Tv,       label: "TV Shows" },
+  { key: "Anime",    path: "/anime",  icon: Sparkles, label: "Anime" },
 ];
 
 const img = (path: string | null, size = "w500") =>
@@ -61,6 +62,8 @@ const Sidebar = ({
   user, profile, onSignOut, canInstall, onInstall
 }: Omit<TabletLayoutProps, "trending" | "shelves" | "continueWatching" | "onSelect" | "onPlay">) => {
   const [profileOpen, setProfileOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <aside className="tablet-sidebar flex flex-col h-full py-6 px-3 select-none">
@@ -89,12 +92,12 @@ const Sidebar = ({
       {/* Nav */}
       <nav className="flex flex-col gap-1 flex-1">
         <p className="text-[10px] font-semibold tracking-[0.15em] uppercase text-white/20 px-4 mb-2">Browse</p>
-        {NAV_ITEMS.map(({ key, icon: Icon, label }) => (
+        {NAV_ITEMS.map(({ key, path, icon: Icon, label }) => (
           <button
             key={key}
-            onClick={() => onNavChange(key)}
+            onClick={() => navigate(path)}
             className={`tablet-nav-item flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200 ${
-              activeNav === key
+              location.pathname === path
                 ? "tablet-nav-active text-white"
                 : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
             }`}

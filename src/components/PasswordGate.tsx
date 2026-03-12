@@ -13,7 +13,7 @@ const PasswordGate = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === "true") setUnlocked(true);
     setLoading(false);
   }, []);
@@ -21,7 +21,7 @@ const PasswordGate = ({ children }: { children: React.ReactNode }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password === SITE_PASSWORD) {
-      sessionStorage.setItem(STORAGE_KEY, "true");
+      localStorage.setItem(STORAGE_KEY, "true");
       setUnlocked(true);
     } else {
       setError(true);
