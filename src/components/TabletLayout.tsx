@@ -92,12 +92,12 @@ const Sidebar = ({
       {/* Nav */}
       <nav className="flex flex-col gap-1 flex-1">
         <p className="text-[10px] font-semibold tracking-[0.15em] uppercase text-white/20 px-4 mb-2">Browse</p>
-        {NAV_ITEMS.map(({ key, icon: Icon, label }) => (
+        {NAV_ITEMS.map(({ key, path, icon: Icon, label }) => (
           <button
             key={key}
-            onClick={() => onNavChange(key)}
+            onClick={() => navigate(path)}
             className={`tablet-nav-item flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200 ${
-              activeNav === key
+              location.pathname === path
                 ? "tablet-nav-active text-white"
                 : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
             }`}
