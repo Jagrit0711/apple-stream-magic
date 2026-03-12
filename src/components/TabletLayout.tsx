@@ -64,6 +64,8 @@ const Sidebar = ({
   const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  return (
     <aside className="tablet-sidebar flex flex-col h-full py-6 px-3 select-none">
       {/* Logo */}
       <div className="px-3 mb-8">
