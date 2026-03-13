@@ -1,6 +1,6 @@
-const TMDB_BASE = "https://api.themoviedb.org/3";
+const TMDB_BASE = "/api/tmdb";
 const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYWRhYzNmMzBhMmI3MDRiMDFmZDk3NzEwOWUxY2I5OSIsIm5iZiI6MTcyODQ2ODkwMC4zNDIwMDAyLCJzdWIiOiI2NzA2NTdhNGRjNTRmMjlkMGVhYjViYTciLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.yIMztIJtw7BbDEw0UhbWzA4Hh7ovRhzTstcvVcMatyE";
-const IMG_BASE = "https://image.tmdb.org/t/p";
+const IMG_BASE = "/api/img";
 
 export const img = (path: string | null, size: "w500" | "w780" | "w1280" | "original" = "w500") =>
   path ? `${IMG_BASE}/${size}${path}` : null;
