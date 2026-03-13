@@ -28,6 +28,7 @@ import SearchOverlay from "@/components/SearchOverlay";
 import ContinueWatchingShelf from "@/components/ContinueWatchingShelf";
 import AuthModal from "@/components/AuthModal";
 import Onboarding from "@/components/Onboarding";
+import Landing from "@/components/Landing";
 import MobileNavBar from "@/components/MobileNavBar";
 import TabletLayout from "@/components/TabletLayout";
 
@@ -35,6 +36,12 @@ const Index = () => {
   const { user, profile } = useAuth();
   const { continueWatching, recentlyWatched, history } = useWatchHistory();
   const { recommendations } = useSmartRecommendations(history);
+
+  // User-Agent based device detection instead of purely CSS media queries
+  const isTablet = useMemo(() => {
+    const ua = navigator.userAgent;
+    return /(tablet|ipad|playbook|macintosh.*touch)/i.test(ua) && !/mobile/i.test(ua);
+  }, []);
 
   const { data: trending = [] } = useQuery({ queryKey: ["trending"], queryFn: fetchTrending });
   const { data: trendingDay = [] } = useQuery({ queryKey: ["trending-day"], queryFn: fetchTrendingDay });
@@ -113,27 +120,37 @@ const Index = () => {
     </>
   );
 
+  if (!user && trendingDay.length > 0) {
+    return (
+      <>
+        <Landing trending={trendingDay} onAuthClick={() => setAuthOpen(true)} />
+        {overlays}
+      </>
+    );
+  }
+
   return (
     <>
-      {user && <Onboarding />}
+      {user && profile && !profile.onboarding_complete && <Onboarding />}
 
-      <TabletLayout
-        activeNav="Home"
-        onNavChange={() => {}}
-        trending={trending}
-        shelves={shelves}
-        continueWatching={continueWatching}
-        onSelect={handleSelect}
-        onPlay={handlePlay}
-        onSearchClick={() => setSearchOpen(true)}
-        onAuthClick={() => setAuthOpen(true)}
-        user={user}
-        profile={profile}
-      />
-
-      <div className="mobile-layout-wrapper min-h-screen bg-background overflow-x-hidden">
-        <Header onSearch={() => {}} onNavChange={() => {}} activeNav="Home" onAuthClick={() => setAuthOpen(true)} onSearchClick={() => setSearchOpen(true)} />
-        {trending.length > 0 && <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />}
+      {isTablet ? (
+        <TabletLayout
+          activeNav="Home"
+          onNavChange={() => {}}
+          trending={trending}
+          shelves={shelves}
+          continueWatching={continueWatching}
+          onSelect={handleSelect}
+          onPlay={handlePlay}
+          onSearchClick={() => setSearchOpen(true)}
+          onAuthClick={() => setAuthOpen(true)}
+          user={user}
+          profile={profile}
+        />
+      ) : (
+        <div className="mobile-layout-wrapper min-h-screen bg-background overflow-x-hidden">
+          <Header onSearch={() => {}} onNavChange={() => {}} activeNav="Home" onAuthClick={() => setAuthOpen(true)} onSearchClick={() => setSearchOpen(true)} />
+          {trending.length > 0 && <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />}
         <div className={`${trending.length > 0 ? "pt-6 sm:pt-8" : "pt-24 sm:pt-28"} pb-24 md:pb-16`}>
           {user && continueWatching.length > 0 && (
             <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
