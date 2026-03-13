@@ -186,6 +186,7 @@ const Index = () => {
         </div>
         <MobileNavBar activeNav="Home" onNavChange={() => {}} onSearchClick={() => setSearchOpen(true)} onAuthClick={() => setAuthOpen(true)} />
       </div>
+      )}
 
       {overlays}
     </>
