@@ -206,7 +206,7 @@ const Index = () => {
                         >
                           <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2">
                             {item.poster_path ? (
-                              <img src={`/api/img/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+                              <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-meta text-sm">No Image</div>
                             )}
