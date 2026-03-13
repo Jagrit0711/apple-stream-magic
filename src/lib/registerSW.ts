@@ -9,9 +9,17 @@ export const registerAdBlockSW = async () => {
   }
 
   try {
+    // Aggressive unregister first to clear out the broken SW that intercepted all fetches
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    for (const reg of registrations) {
+      if (reg.active?.scriptURL.includes("sw.js")) {
+        await reg.unregister();
+        console.log("[SW AdBlock] Unregistered old broken instance");
+      }
+    }
+
     const registration = await navigator.serviceWorker.register("/sw.js", {
       scope: "/",
-      // Update on every page load to get latest blocklist
       updateViaCache: "none",
     });
 

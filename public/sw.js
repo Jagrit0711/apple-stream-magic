@@ -1,14 +1,11 @@
 // public/sw.js
 // Service Worker Ad Blocker - intercepts ALL network requests including from iframes
-// This is the only way to block requests that originate inside a cross-origin iframe
 
-const VERSION = "adblock-v1";
+const VERSION = "adblock-v2";
 
 // Known ad/tracker domains to block
-// Add more as you discover them in the console
 const BLOCKED_DOMAINS = [
   "turnixamtman.com",
-  "ye.turnixamtman.com",
   "doubleclick.net",
   "googlesyndication.com",
   "adservice.google.com",
@@ -39,7 +36,6 @@ const BLOCKED_DOMAINS = [
   "n9.cl",
   "sh.st",
   "clk.sh",
-  "t.co",
   "oxy.st",
   "exe.io",
   "adfly",
@@ -54,49 +50,41 @@ const BLOCKED_DOMAINS = [
   "plugrush.com",
 ];
 
-// Block URL patterns (regex strings)
-const BLOCKED_PATTERNS = [
-  "/ads/",
-  "/ad/",
-  "/adserve/",
-  "/adclick/",
-  "/pop/",
-  "/popup/",
-  "/popunder/",
-  "/banner/",
-  "?ad_",
-  "&ad_",
-  "affiliate",
-  "clicktrack",
-  "popunder",
-  "pop-under",
+// Domains that should ALWAYS be allowed through
+const ALWAYS_ALLOWED = [
+  "localhost",
+  "api.themoviedb.org",
+  "image.tmdb.org",
+  "themoviedb.org",
+  "supabase.co",
+  "videasy.net",
+  "youtube.com",
+  "youtube-nocookie.com",
+  "youtu.be",
+  "googleapis.com",
+  "googlevideo.com",
+  "corsproxy.io",
+  "allorigins.win",
+  "zuup.dev",
 ];
+
+const isAlwaysAllowed = (hostname) => {
+  return ALWAYS_ALLOWED.some(
+    (d) => hostname === d || hostname.endsWith("." + d)
+  );
+};
 
 const isBlocked = (url) => {
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
 
+    // Never block always-allowed domains
+    if (isAlwaysAllowed(hostname)) return false;
+
     // Check domain blocklist
     for (const domain of BLOCKED_DOMAINS) {
       if (hostname === domain || hostname.endsWith("." + domain)) {
-        return true;
-      }
-    }
-
-    // Check URL patterns
-    const fullUrl = url.toLowerCase();
-    for (const pattern of BLOCKED_PATTERNS) {
-      if (fullUrl.includes(pattern.toLowerCase())) {
-        // Don't block legitimate video CDN paths
-        if (
-          fullUrl.includes("videasy") ||
-          fullUrl.includes("themoviedb") ||
-          fullUrl.includes("tmdb") ||
-          fullUrl.includes("zuup.dev")
-        ) {
-          continue;
-        }
         return true;
       }
     }
@@ -109,7 +97,7 @@ const isBlocked = (url) => {
 
 // Install: skip waiting to activate immediately
 self.addEventListener("install", (event) => {
-  console.log("[SW AdBlock] Installing...");
+  console.log("[SW AdBlock] Installing v" + VERSION);
   self.skipWaiting();
 });
 
@@ -123,10 +111,9 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = event.request.url;
 
+  // Block known ad domains with an empty 200 response
   if (isBlocked(url)) {
     console.warn("[SW AdBlock] Blocked request →", url);
-    // Return an empty 200 response instead of an error
-    // This prevents error logs and prevents retry attempts
     event.respondWith(
       new Response("", {
         status: 200,
@@ -137,32 +124,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // For navigation requests to external sites (the actual redirect attack)
-  // Block top-level navigations to non-allowed domains
+  // For navigation requests, only intercept actual redirect attacks
+  // (navigations to known ad domains), let everything else through
   if (
     event.request.mode === "navigate" &&
     event.request.destination === "document"
   ) {
-    const ALLOWED = ["zuup.dev", "localhost", "videasy.net"];
     try {
-      const parsed = new URL(url);
-      const isAllowed = ALLOWED.some(
-        (d) => parsed.hostname === d || parsed.hostname.endsWith("." + d)
-      );
-      if (!isAllowed && !url.startsWith(self.location.origin)) {
-        console.warn("[SW AdBlock] Blocked navigation →", url);
-        // Return the app shell instead of navigating away
+      if (isBlocked(url) && !url.startsWith(self.location.origin)) {
         event.respondWith(
           new Response(
-            `<!DOCTYPE html>
-            <html>
-              <head><script>window.location.href = "/";<\/script></head>
-              <body></body>
-            </html>`,
-            {
-              status: 200,
-              headers: { "Content-Type": "text/html" },
-            }
+            `<!DOCTYPE html><html><head><script>window.location.href = "/";<\/script></head><body></body></html>`,
+            { status: 200, headers: { "Content-Type": "text/html" } }
           )
         );
         return;
@@ -170,6 +143,7 @@ self.addEventListener("fetch", (event) => {
     } catch {}
   }
 
-  // All other requests: pass through normally
-  event.respondWith(fetch(event.request));
+  // DO NOTHING for all other requests. 
+  // By not calling event.respondWith, we let the browser handle the fetch natively.
+  // This prevents the Service Worker from breaking CORS, HMR, or network fallbacks.
 });

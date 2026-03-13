@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, X, ChevronDown } from "lucide-react";
+import { Play, X, ChevronDown, Film, Tv, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
   TMDBMovie,
   TMDBEpisode,
@@ -12,6 +13,7 @@ import {
   fetchMovieDetail,
   fetchTVDetail,
   fetchTVSeasonEpisodes,
+  fetchTrailers,
 } from "@/lib/tmdb";
 
 interface DetailViewProps {
@@ -22,11 +24,19 @@ interface DetailViewProps {
 
 const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
   const [selectedSeason, setSelectedSeason] = useState(1);
+  const [showTrailer, setShowTrailer] = useState(false);
+  const navigate = useNavigate();
   const type = item ? getContentType(item) : "movie";
 
   const { data: detail } = useQuery({
     queryKey: ["detail", item?.id, type],
     queryFn: () => (type === "movie" ? fetchMovieDetail(item!.id) : fetchTVDetail(item!.id)),
+    enabled: !!item,
+  });
+
+  const { data: trailers = [] } = useQuery({
+    queryKey: ["trailers", item?.id, type],
+    queryFn: () => fetchTrailers(item!.id, type),
     enabled: !!item,
   });
 
@@ -36,12 +46,21 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
     enabled: !!item && type === "tv",
   });
 
-  useEffect(() => { setSelectedSeason(1); }, [item?.id]);
+  useEffect(() => { setSelectedSeason(1); setShowTrailer(false); }, [item?.id]);
   useEffect(() => {
     if (item) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
     return () => { document.body.style.overflow = ""; };
   }, [item]);
+
+  const handleWatchParty = () => {
+    if (!item) return;
+    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    onClose();
+    navigate(`/watch-party/${roomId}?id=${item.id}&type=${type}`);
+  };
+
+  const mainTrailer = trailers[0];
 
   return (
     <AnimatePresence>
@@ -69,23 +88,63 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
               <X size={18} />
             </button>
 
-            <div className="relative aspect-video rounded-t-2xl overflow-hidden">
-              {img(item.backdrop_path, "w1280") ? (
-                <img src={img(item.backdrop_path, "w1280")!} alt={getTitle(item)} className="w-full h-full object-cover" />
+            {/* Hero / Trailer area */}
+            <div className="relative aspect-video rounded-t-2xl overflow-hidden bg-black">
+              {showTrailer && mainTrailer ? (
+                <iframe
+                  className="w-full h-full border-0"
+                  src={`https://www.youtube.com/embed/${mainTrailer.key}?autoplay=1&rel=0`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={mainTrailer.name}
+                />
               ) : (
-                <div className="w-full h-full bg-surface" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
+                <>
+                  {img(item.backdrop_path, "w1280") ? (
+                    <img src={img(item.backdrop_path, "w1280")!} alt={getTitle(item)} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-surface" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
 
-              <div className="absolute bottom-6 left-8">
+                  <div className="absolute bottom-6 left-8 flex items-center gap-3 flex-wrap">
+                    <button
+                      onClick={() => { onClose(); navigate(`/${type}/${item.id}?autoplay=1${type === "tv" ? `&season=${selectedSeason}&episode=1` : ""}`); }}
+                      className="flex items-center gap-2 bg-accent text-accent-foreground px-7 py-3 rounded-full font-semibold text-sm hover:bg-accent/90 transition-all accent-glow"
+                    >
+                      <Play size={16} fill="currentColor" />
+                      {type === "movie" ? "Play" : "Play S1 E1"}
+                    </button>
+
+                    {mainTrailer && (
+                      <button
+                        onClick={() => setShowTrailer(true)}
+                        className="flex items-center gap-2 glass text-foreground px-5 py-3 rounded-full font-semibold text-sm hover:bg-white/10 transition-all"
+                      >
+                        <Film size={16} />
+                        Trailer
+                      </button>
+                    )}
+
+                    <button
+                      onClick={handleWatchParty}
+                      className="flex items-center gap-2 glass text-foreground px-5 py-3 rounded-full font-semibold text-sm hover:bg-white/10 transition-all"
+                    >
+                      <Users size={16} />
+                      Watch Party
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {showTrailer && (
                 <button
-                  onClick={() => type === "movie" ? onPlay(item.id, "movie") : onPlay(item.id, "tv", selectedSeason, 1)}
-                  className="flex items-center gap-2 bg-accent text-accent-foreground px-7 py-3 rounded-full font-semibold text-sm hover:bg-accent/90 transition-all accent-glow"
+                  onClick={() => setShowTrailer(false)}
+                  className="absolute top-3 right-3 z-10 glass rounded-full p-2 text-white hover:text-white/70 transition-colors"
                 >
-                  <Play size={16} fill="currentColor" />
-                  {type === "movie" ? "Play" : "Play S1 E1"}
+                  <X size={16} />
                 </button>
-              </div>
+              )}
             </div>
 
             <div className="glass-strong rounded-b-2xl px-8 py-8">
@@ -114,6 +173,25 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                 </div>
               )}
 
+              {/* All trailers list */}
+              {trailers.length > 1 && (
+                <div className="mb-6">
+                  <p className="text-meta text-xs mb-3 uppercase tracking-wider">Videos</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {trailers.slice(0, 4).map(v => (
+                      <button
+                        key={v.id}
+                        onClick={() => setShowTrailer(true)}
+                        className="glass text-xs text-foreground/70 px-3 py-1.5 rounded-full hover:text-foreground transition-colors flex items-center gap-1"
+                      >
+                        <Film size={11} />
+                        {v.name.length > 30 ? v.name.slice(0, 30) + "…" : v.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {type === "tv" && detail?.seasons && (
                 <div>
                   <div className="flex items-center gap-3 mb-4">
@@ -136,7 +214,7 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                     {episodes?.map((ep) => (
                       <button
                         key={ep.id}
-                        onClick={() => onPlay(item.id, "tv", selectedSeason, ep.episode_number)}
+                        onClick={() => { onClose(); navigate(`/tv/${item.id}?autoplay=1&season=${selectedSeason}&episode=${ep.episode_number}`); }}
                         className="w-full flex items-start gap-4 p-3 rounded-xl glass glass-hover text-left group"
                       >
                         <div className="flex-shrink-0 w-28 aspect-video rounded-lg overflow-hidden bg-muted">

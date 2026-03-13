@@ -9,9 +9,21 @@ const ALLOWED_DOMAINS = [
   "videasy.net",
   "player.videasy.net",
   "themoviedb.org",
+  "api.themoviedb.org",
   "image.tmdb.org",
   "supabase.co",
   "localhost",
+  "youtube.com",
+  "www.youtube.com",
+  "youtube-nocookie.com",
+  "youtu.be",
+  "googleapis.com",
+  "googlevideo.com",
+  "ytimg.com",
+  "ggpht.com",
+  "corsproxy.io",
+  "allorigins.win",
+  "api.allorigins.win",
 ];
 
 const AD_URL_PATTERNS = [
@@ -45,9 +57,10 @@ const isAllowedUrl = (url: string): boolean => {
     if (parsed.origin === window.location.origin) return true;
     // Allow whitelisted domains
     if (ALLOWED_DOMAINS.some(d => parsed.hostname === d || parsed.hostname.endsWith("." + d))) return true;
-    // Block known ad patterns
+    // Block known ad patterns only
     if (AD_URL_PATTERNS.some(p => p.test(url))) return false;
-    return false;
+    // Allow everything else (external CDNs, APIs, etc)
+    return true;
   } catch {
     return true; // relative/invalid URLs are fine
   }
