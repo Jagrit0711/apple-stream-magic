@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Send, Check, Link2, ArrowLeft,
-  Play, Loader2, Crown, MessageSquare, GripVertical
+  Play, Crown, MessageSquare, Timer, Pause, Info
 } from "lucide-react";
 import { useWatchParty } from "@/hooks/useWatchParty";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ const WatchParty = () => {
   const [chatInput, setChatInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -36,15 +37,15 @@ const WatchParty = () => {
     enabled: !!contentId,
   });
 
-  // Host initializes the lobby
+  // Host initializes the room state
   useEffect(() => {
-    if (isHost && connected && contentId && !partyState) {
+    if (isHost && connected && contentId && (!partyState || partyState.contentId !== contentId)) {
       broadcastState({
         contentId,
         contentType,
         season: seasonParam,
         episode: episodeParam,
-        status: "waiting", // Start in lobby
+        status: "waiting", // Default state
       });
     }
   }, [isHost, connected, contentId, partyState]);
@@ -67,25 +68,44 @@ const WatchParty = () => {
     setChatInput("");
   };
 
-  const handleStartParty = () => {
-    if (isHost) {
-      broadcastState({ ...partyState!, status: "playing" });
-    }
-  };
-
   const activeContent = partyState || {
     contentId, contentType,
     season: seasonParam, episode: episodeParam,
     status: "waiting" as const,
   };
 
+  const isCountdown = activeContent.status === "countdown";
+
+  // Countdown timer logic
+  useEffect(() => {
+    if (isCountdown && activeContent.syncTime) {
+      const interval = setInterval(() => {
+        const remaining = activeContent.syncTime! - Date.now();
+        setTimeLeft(Math.max(0, remaining));
+
+        // When countdown finishes, Host auto-switches state back to playing so the overlay vanishes
+        if (remaining <= -2000 && isHost) {
+          broadcastState({ ...activeContent, status: "playing", syncTime: undefined });
+        }
+      }, 50);
+      return () => clearInterval(interval);
+    }
+  }, [isCountdown, activeContent.syncTime, isHost]);
+
+  const handleStartCountdown = () => {
+    if (isHost) {
+      // 5 seconds into the future
+      broadcastState({ ...activeContent, status: "countdown", syncTime: Date.now() + 5000 });
+      sendChat("📢 Started a sync countdown! Get ready to click PLAY!");
+    }
+  };
+
   let playerSrc = `https://player.videasy.net/${activeContent.contentType}/${activeContent.contentId}`;
   if (activeContent.contentType === "tv" && activeContent.season && activeContent.episode) {
     playerSrc += `/${activeContent.season}/${activeContent.episode}`;
   }
-  playerSrc += "?color=E11D48&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true&autoplay=true";
-
-  const backdrop = detail ? img(detail.backdrop_path, "w1280") : null;
+  // Remove autoplay so users load into the video paused and wait for the countdown to click it themselves!
+  playerSrc += "?color=E11D48&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true";
 
   return (
     <div className="h-screen w-screen bg-black flex flex-col overflow-hidden font-sans text-white">
@@ -99,18 +119,31 @@ const WatchParty = () => {
             <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl px-4 py-1.5 rounded-full border border-white/5">
               <span className="font-semibold tracking-wide text-sm">{getTitle(detail)}</span>
               <div className="h-4 w-px bg-white/20" />
-              <span className="text-xs uppercase tracking-widest text-[#E11D48] font-bold">Watch Party</span>
+              <span className="text-xs uppercase tracking-widest text-[#E11D48] font-bold flex items-center gap-1.5">
+                <Users size={12} /> Watch Party
+              </span>
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-3 pointer-events-auto">
+          {isHost && (
+            <button
+              onClick={handleStartCountdown}
+              disabled={isCountdown}
+              className="flex items-center gap-2 bg-[#E11D48] hover:bg-[#E11D48]/80 disabled:opacity-50 px-4 py-2 rounded-full text-sm font-bold shadow-[0_0_15px_-3px_#E11D48] transition-all"
+            >
+              <Timer size={16} />
+              Sync Countdown
+            </button>
+          )}
+
           <button
             onClick={copyLink}
             className="flex items-center gap-2 glass backdrop-blur-md px-4 py-2 rounded-full text-sm font-medium hover:bg-white/20 transition-all border border-white/5"
           >
             {copied ? <Check size={16} className="text-green-400" /> : <Link2 size={16} />}
-            {copied ? "Link Copied" : "Invite Friends"}
+            {copied ? "Copied" : "Invite"}
           </button>
           
           <button
@@ -129,7 +162,7 @@ const WatchParty = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Entrance Gate - guarantees browser autoplay policies are satisfied */}
+        {/* Entrance Gate */}
         <AnimatePresence>
           {!hasJoined && (
             <motion.div
@@ -143,9 +176,14 @@ const WatchParty = () => {
                   <Play size={24} className="text-[#E11D48] ml-1" />
                 </div>
                 <h2 className="text-2xl font-bold mb-3 tracking-tight">Join Watch Party</h2>
-                <p className="text-white/50 text-sm mb-8 leading-relaxed">
-                  Enter the room to sync your player with the host. Make sure your volume is on!
-                </p>
+                <div className="text-white/50 text-sm mb-6 leading-relaxed bg-white/5 p-4 rounded-xl border border-white/10 text-left">
+                  <p className="flex items-center gap-2 mb-2 font-bold text-white/80"><Info size={14} className="text-[#E11D48]"/> How to Sync Perfectly:</p>
+                  <ol className="list-decimal pl-4 space-y-1">
+                    <li>Enter the room below.</li>
+                    <li>The host will trigger a 5-second countdown.</li>
+                    <li>Click the <b>White Play Button</b> exactly when it says <span className="text-green-400 font-bold">GO!</span></li>
+                  </ol>
+                </div>
                 <button
                   onClick={() => setHasJoined(true)}
                   className="w-full py-3.5 bg-[#E11D48] hover:bg-[#E11D48]/90 text-white rounded-2xl font-bold tracking-wide transition-all active:scale-95 shadow-[0_0_30px_-10px_#E11D48]"
@@ -157,75 +195,79 @@ const WatchParty = () => {
           )}
         </AnimatePresence>
 
-        {/* Cinematic Video / Lobby Area */}
+        {/* Sync Countdown Overlay */}
+        <AnimatePresence>
+          {isCountdown && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-40 pointer-events-none flex flex-col items-center justify-center"
+            >
+              {timeLeft > 0 ? (
+                <>
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-all" />
+                  <motion.div 
+                    key={Math.ceil(timeLeft / 1000)}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1.5, opacity: 1 }}
+                    exit={{ scale: 2, opacity: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="text-[150px] font-black text-white drop-shadow-[0_0_50px_#E11D48] z-50 tracking-tighter"
+                  >
+                    {Math.ceil(timeLeft / 1000)}
+                  </motion.div>
+                  <p className="absolute bottom-32 text-2xl font-bold tracking-widest text-[#E11D48] animate-pulse uppercase">Get ready to click play...</p>
+                </>
+              ) : (
+                <>
+                  {/* Flashes screen green, removes pointer-events entirely so they can literally click the play button underneath! */}
+                  <motion.div 
+                    initial={{ opacity: 0.8, backgroundColor: "rgba(74, 222, 128, 0.3)" }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 1.5 }}
+                    className="absolute inset-0 z-40 pointer-events-none"
+                  />
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 1 }}
+                    animate={{ scale: [1.2, 1], opacity: [1, 0] }}
+                    transition={{ duration: 2 }}
+                    className="absolute z-50 text-[100px] font-black text-green-400 drop-shadow-[0_0_50px_rgb(74,222,128)] pointer-events-none"
+                    style={{ top: "15%" }}
+                  >
+                    GO GO GO!
+                  </motion.div>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Cinematic Video Area (ALWAYS MOUNTED IF JOINED) */}
         <div className="flex-1 relative flex flex-col bg-black">
-          <AnimatePresence mode="wait">
-            {activeContent.status === "waiting" || !hasJoined ? (
-              <motion.div 
-                key="lobby"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, scale: 1.05 }}
-                transition={{ duration: 0.8 }}
-                className="absolute inset-0 flex items-center justify-center"
-              >
-                {/* Lobby Background Blur */}
-                {backdrop && (
-                  <div className="absolute inset-0">
-                    <img src={backdrop} className="w-full h-full object-cover opacity-30 scale-105 blur-2xl" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black" />
-                  </div>
-                )}
-                
-                <div className="relative z-10 flex flex-col items-center text-center max-w-lg p-8 glass-strong rounded-3xl border border-white/10 shadow-2xl">
-                  {detail && img(detail.poster_path, "w500") && (
-                    <img src={img(detail.poster_path, "w500")!} className="w-32 rounded-lg shadow-2xl mb-6 ring-2 ring-white/10" />
-                  )}
-                  <h2 className="text-3xl font-bold mb-2">{detail ? getTitle(detail) : "Loading..."}</h2>
-                  <p className="text-white/50 mb-8 max-w-sm">
-                    {isHost 
-                      ? "You are the host. When everyone is ready, click Start to perfectly sync the movie for all viewers." 
-                      : "Waiting for the host to start the watch party..."}
-                  </p>
-                  
-                  <div className="flex flex-col items-center gap-4 w-full">
-                    {isHost ? (
-                      <button 
-                        onClick={handleStartParty}
-                        disabled={!connected}
-                        className="w-full py-4 bg-[#E11D48] hover:bg-[#E11D48]/90 text-white rounded-2xl font-bold tracking-wide transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-[0_0_40px_-10px_#E11D48]"
-                      >
-                        <Play size={20} fill="currentColor" />
-                        Start Synchronized Playback
-                      </button>
-                    ) : (
-                      <div className="w-full py-4 glass text-white/50 rounded-2xl font-medium flex items-center justify-center gap-3">
-                        <Loader2 size={18} className="animate-spin" />
-                        Waiting for host...
-                      </div>
-                    )}
-                    <span className="text-xs text-white/40 font-mono tracking-widest mt-2">{members.length} USERS CONNECTED</span>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="player"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 1 }}
-                className="absolute inset-0 w-full h-full bg-black"
-              >
-                <iframe
-                  key={playerSrc}
-                  src={playerSrc}
-                  className="w-full h-full border-0"
-                  allowFullScreen
-                  allow="encrypted-media; fullscreen; autoplay"
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {hasJoined && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1 }}
+              className="absolute inset-0 w-full h-full bg-black z-0"
+            >
+              <iframe
+                key={playerSrc}
+                src={playerSrc}
+                className="w-full h-full border-0"
+                allowFullScreen
+                allow="encrypted-media; fullscreen; autoplay"
+              />
+            </motion.div>
+          )}
+
+          {/* Guide Overlay for Guests */}
+          {hasJoined && !isHost && !isCountdown && activeContent.status !== "playing" && (
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 px-6 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 text-white/50 text-sm pointer-events-none z-30 animate-pulse">
+              Waiting for Host to start the sync countdown... Don't click play yet!
+            </div>
+          )}
         </div>
 
         {/* Chat Sidebar Overlay Slide-in */}
@@ -295,7 +337,7 @@ const WatchParty = () => {
                         </div>
                         <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                           <span className="text-[10px] text-white/40 mb-1 px-1">{isMe ? "You" : msg.displayName}</span>
-                          <div className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed shadow-sm
+                          <div className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed shadow-sm break-words
                             ${isMe ? "bg-gradient-to-tr from-[#E11D48] to-orange-600 text-white rounded-tr-sm" 
                                   : "glass text-white/90 rounded-tl-sm border border-white/5"}`}>
                             {msg.text}

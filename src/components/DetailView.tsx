@@ -105,35 +105,7 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                   ) : (
                     <div className="w-full h-full bg-surface" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
-
-                  <div className="absolute bottom-6 left-8 flex items-center gap-3 flex-wrap">
-                    <button
-                      onClick={() => { onClose(); navigate(`/${type}/${item.id}?autoplay=1${type === "tv" ? `&season=${selectedSeason}&episode=1` : ""}`); }}
-                      className="flex items-center gap-2 bg-accent text-accent-foreground px-7 py-3 rounded-full font-semibold text-sm hover:bg-accent/90 transition-all accent-glow"
-                    >
-                      <Play size={16} fill="currentColor" />
-                      {type === "movie" ? "Play" : "Play S1 E1"}
-                    </button>
-
-                    {mainTrailer && (
-                      <button
-                        onClick={() => setShowTrailer(true)}
-                        className="flex items-center gap-2 glass text-foreground px-5 py-3 rounded-full font-semibold text-sm hover:bg-white/10 transition-all"
-                      >
-                        <Film size={16} />
-                        Trailer
-                      </button>
-                    )}
-
-                    <button
-                      onClick={handleWatchParty}
-                      className="flex items-center gap-2 glass text-foreground px-5 py-3 rounded-full font-semibold text-sm hover:bg-white/10 transition-all"
-                    >
-                      <Users size={16} />
-                      Watch Party
-                    </button>
-                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
                 </>
               )}
 
@@ -150,14 +122,43 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
             <div className="glass-strong rounded-b-2xl px-8 py-8">
               <h2 className="font-bold text-3xl text-foreground mb-2 tracking-tight">{getTitle(item)}</h2>
 
-              <div className="flex items-center gap-3 mb-4 text-sm text-meta flex-wrap">
+              <div className="flex items-center gap-3 mb-6 text-sm text-meta flex-wrap">
                 <span>{getYear(item)}</span>
                 {detail?.runtime && <span>{Math.floor(detail.runtime / 60)}h {detail.runtime % 60}m</span>}
                 {detail?.number_of_seasons && <span>{detail.number_of_seasons} Season{detail.number_of_seasons > 1 ? "s" : ""}</span>}
-                <span className="text-accent">★ {item.vote_average?.toFixed(1)}</span>
+                <span className="text-accent font-bold">★ {item.vote_average?.toFixed(1)}</span>
                 {detail?.genres?.map(g => (
-                  <span key={g.id} className="glass rounded-full px-3 py-0.5 text-xs">{g.name}</span>
+                  <span key={g.id} className="bg-white/5 border border-white/10 rounded-full px-3 py-0.5 text-xs text-foreground/80">{g.name}</span>
                 ))}
+              </div>
+
+              {/* Action Buttons always visible */}
+              <div className="flex items-center gap-3 mb-8 flex-wrap">
+                <button
+                  onClick={() => { onClose(); navigate(`/${type}/${item.id}?autoplay=1${type === "tv" ? `&season=${selectedSeason}&episode=1` : ""}`); }}
+                  className="flex items-center gap-2 bg-[#E11D48] text-white px-8 py-3.5 rounded-full font-bold text-sm hover:bg-[#E11D48]/90 transition-all shadow-[0_4px_20px_-5px_#E11D48]"
+                >
+                  <Play size={16} fill="currentColor" />
+                  {type === "movie" ? "Play Movie" : "Play S1 E1"}
+                </button>
+
+                {!showTrailer && mainTrailer && (
+                  <button
+                    onClick={() => setShowTrailer(true)}
+                    className="flex items-center gap-2 bg-white/10 border border-white/10 text-white px-6 py-3.5 rounded-full font-semibold text-sm hover:bg-white/20 transition-all"
+                  >
+                    <Film size={16} />
+                    Watch Trailer
+                  </button>
+                )}
+
+                <button
+                  onClick={handleWatchParty}
+                  className="flex items-center gap-2 bg-white/10 border border-white/10 text-white px-6 py-3.5 rounded-full font-semibold text-sm hover:bg-white/20 transition-all"
+                >
+                  <Users size={16} />
+                  Watch Party
+                </button>
               </div>
 
               {detail?.tagline && (
