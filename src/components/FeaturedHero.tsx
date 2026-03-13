@@ -57,10 +57,10 @@ const FeaturedHero = ({ items, onSelect, onPlay }: FeaturedHeroProps) => {
         <motion.div
           key={item.id}
           custom={direction}
-          initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.98 }}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, scale: 1.1, x: direction > 0 ? 100 : -100 }}
+          animate={{ opacity: 1, scale: 1, x: 0 }}
+          exit={{ opacity: 0, scale: 0.9, x: direction > 0 ? -100 : 100 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="absolute inset-0"
         >
           {backdrop && (
@@ -68,9 +68,9 @@ const FeaturedHero = ({ items, onSelect, onPlay }: FeaturedHeroProps) => {
               src={backdrop}
               alt={getTitle(item)}
               className="absolute inset-0 w-full h-full object-cover"
-              initial={{ scale: 1.08 }}
+              initial={{ scale: 1.15 }}
               animate={{ scale: 1 }}
-              transition={{ duration: 10, ease: "easeOut" }}
+              transition={{ duration: 15, ease: "linear" }}
             />
           )}
         </motion.div>
@@ -121,20 +121,24 @@ const FeaturedHero = ({ items, onSelect, onPlay }: FeaturedHeroProps) => {
             </p>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => onPlay(item)}
-                className="flex items-center gap-2 bg-accent text-accent-foreground px-5 sm:px-7 py-2.5 sm:py-3 rounded-full font-semibold text-xs sm:text-sm hover:bg-accent/90 transition-all duration-300 accent-glow active:scale-95 touch-manipulation"
+                className="flex items-center gap-2 bg-accent text-accent-foreground px-5 sm:px-7 py-2.5 sm:py-3 rounded-full font-semibold text-xs sm:text-sm hover:translate-y-[-2px] hover:shadow-[0_8px_25px_rgba(225,29,72,0.4)] transition-all duration-300 accent-glow active:scale-95 touch-manipulation"
               >
                 <Play size={14} fill="currentColor" />
                 Play Now
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => onSelect(item)}
-                className="flex items-center gap-2 glass glass-hover px-5 sm:px-7 py-2.5 sm:py-3 rounded-full font-semibold text-xs sm:text-sm text-foreground active:scale-95 touch-manipulation"
+                className="flex items-center gap-2 glass glass-hover px-5 sm:px-7 py-2.5 sm:py-3 rounded-full font-semibold text-xs sm:text-sm text-foreground hover:translate-y-[-2px] active:scale-95 touch-manipulation"
               >
                 <Info size={14} />
                 More Info
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         </AnimatePresence>

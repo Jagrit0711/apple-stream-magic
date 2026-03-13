@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { label: "Home", path: "/" },
   { label: "Movies", path: "/movies" },
   { label: "TV Shows", path: "/tv" },
-  { label: "Anime", path: "/anime" },
+  { label: "Watchlist", path: "/profile" },
 ];
 
 const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }: HeaderProps) => {
@@ -52,47 +52,62 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
 
           <nav className="hidden md:flex items-center gap-1">
             {NAV_ITEMS.map((item) => (
-              <button
+              <motion.button
                 key={item.label}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => navigate(item.path)}
-                className={`relative px-4 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300 ${
+                className={`relative px-4 py-2 rounded-full text-[13px] font-bold tracking-wide transition-all duration-300 ${
                   location.pathname === item.path
-                    ? "text-foreground bg-[hsla(0,0%,100%,0.08)]"
+                    ? "text-foreground bg-white/10 shadow-lg shadow-white/5"
                     : "text-meta hover:text-foreground"
                 }`}
               >
                 {item.label}
-              </button>
+                {location.pathname === item.path && (
+                  <motion.div
+                    layoutId="header-nav"
+                    className="absolute inset-0 bg-white/5 rounded-full -z-10"
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+              </motion.button>
             ))}
           </nav>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            whileTap={{ scale: 0.9 }}
             onClick={onSearchClick}
-            className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300 touch-manipulation hidden md:flex"
+            className="p-3 rounded-full text-meta hover:text-foreground hover:bg-white/5 transition-all duration-300 touch-manipulation hidden md:flex"
           >
-            <Search size={18} />
-          </button>
+            <Search size={20} />
+          </motion.button>
 
           {canInstall && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={promptInstall}
-              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300 touch-manipulation"
+              className="hidden md:flex items-center gap-1.5 px-4 py-2.5 rounded-full text-meta hover:text-foreground hover:bg-white/5 transition-all duration-300 touch-manipulation"
               title="Install app"
             >
-              <Download size={16} />
-              <span className="text-xs font-medium">Install</span>
-            </button>
+              <Download size={18} />
+              <span className="text-xs font-black uppercase tracking-wider">Install</span>
+            </motion.button>
           )}
 
           <div className="relative hidden md:block">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => user ? setMenuOpen(!menuOpen) : onAuthClick()}
-              className="p-2.5 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all duration-300 touch-manipulation"
+              className="p-3 rounded-full text-meta hover:text-foreground hover:bg-white/5 transition-all duration-300 touch-manipulation"
             >
-              <User size={18} />
-            </button>
+              <User size={20} />
+            </motion.button>
             <AnimatePresence>
               {user && menuOpen && (
                 <motion.div
@@ -103,9 +118,15 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
                   className="absolute right-0 top-full mt-2 w-52 bg-card border border-border rounded-xl overflow-hidden z-50 shadow-2xl"
                 >
                   <div className="px-4 py-3 border-b border-border">
-                    <p className="text-sm text-foreground truncate">{profile?.display_name || user.email}</p>
+                    <p className="text-sm text-foreground truncate font-semibold">{profile?.display_name || user.email?.split('@')[0]}</p>
                     <p className="text-xs text-meta truncate">{user.email}</p>
                   </div>
+                  <button
+                    onClick={() => { navigate("/profile"); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-meta hover:text-foreground hover:bg-surface transition-colors touch-manipulation border-b border-border"
+                  >
+                    <User size={14} /> My Profile
+                  </button>
                   <button
                     onClick={() => { signOut(); setMenuOpen(false); }}
                     className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-meta hover:text-foreground hover:bg-surface transition-colors touch-manipulation"

@@ -17,6 +17,7 @@ export interface TMDBMovie {
   vote_average: number;
   genre_ids: number[];
   media_type?: string;
+  original_language?: string;
 }
 
 export interface TMDBDetail extends TMDBMovie {
@@ -49,9 +50,9 @@ export interface TMDBGenre {
 }
 
 const CORS_PROXIES = [
-  (url: string) => url, // direct first
-  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`, // Use Cloudflare-backed proxy first to bypass blocks
   (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url: string) => url, // Direct access as fallback
 ];
 
 async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
@@ -152,6 +153,37 @@ export const fetchSimilar = (id: number, type: "movie" | "tv") =>
 export const fetchTrendingDay = () =>
   tmdbFetch<{ results: TMDBMovie[] }>("/trending/all/day").then(r => r.results);
 
+export const fetchTrendingWeek = () =>
+  tmdbFetch<{ results: TMDBMovie[] }>("/trending/all/week").then(r => r.results);
+
+export const fetchTop10Global = (type: "movie" | "tv") =>
+  tmdbFetch<{ results: TMDBMovie[] }>(`/trending/${type}/day`).then(r => r.results.slice(0, 10));
+
+export const fetchTop10Region = async (type: "movie" | "tv", region: string = "IN") => {
+  const now = new Date();
+  const fiveYearsAgo = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+  
+  const params: Record<string, string> = {
+    watch_region: region,
+    sort_by: "popularity.desc",
+  };
+
+  if (region === "IN") {
+    // 8: Netflix, 119: Amazon Prime Video (Hotstar removed as requested)
+    params["with_watch_providers"] = "8|119";
+    params["watch_region"] = "IN";
+  }
+
+  if (type === "tv") {
+    params["first_air_date.gte"] = fiveYearsAgo;
+  } else {
+    params["primary_release_date.gte"] = fiveYearsAgo;
+  }
+
+  const data = await tmdbFetch<{ results: TMDBMovie[] }>(`/discover/${type}`, params);
+  return data.results.slice(0, 10);
+};
+
 export interface TMDBVideo {
   id: string;
   key: string;
@@ -191,3 +223,18 @@ export const MOVIE_GENRES: TMDBGenre[] = [
   { id: 878, name: "Sci-Fi" },
   { id: 53, name: "Thriller" },
 ];
+
+export const TV_GENRES: TMDBGenre[] = [
+  { id: 10759, name: "Action & Adventure" },
+  { id: 16, name: "Animation" },
+  { id: 35, name: "Comedy" },
+  { id: 80, name: "Crime" },
+  { id: 99, name: "Documentary" },
+  { id: 18, name: "Drama" },
+  { id: 10751, name: "Family" },
+  { id: 10762, name: "Kids" },
+  { id: 9648, name: "Mystery" },
+  { id: 10765, name: "Sci-Fi & Fantasy" },
+  { id: 10764, name: "Reality" },
+];
+

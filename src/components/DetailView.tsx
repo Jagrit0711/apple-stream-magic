@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, X, ChevronDown, Film, Tv, Users } from "lucide-react";
+import { Play, X, ChevronDown, Film, Tv, Users, Plus, Check, Volume2, VolumeX } from "lucide-react";
+import { usePersistentMute } from "@/hooks/usePersistentMute";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useWatchlist } from "@/hooks/useWatchlist";
 import {
   TMDBMovie,
   TMDBEpisode,
@@ -26,6 +28,9 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
   const [selectedSeason, setSelectedSeason] = useState(1);
   const [showTrailer, setShowTrailer] = useState(false);
   const navigate = useNavigate();
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const { isMuted, toggleMute } = usePersistentMute();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const type = item ? getContentType(item) : "movie";
 
   const { data: detail } = useQuery({
@@ -52,6 +57,16 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
     else document.body.style.overflow = "";
     return () => { document.body.style.overflow = ""; };
   }, [item]);
+
+  useEffect(() => {
+    if (iframeRef.current?.contentWindow) {
+      const func = isMuted ? "mute" : "unMute";
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: func, args: [] }),
+        "*"
+      );
+    }
+  }, [isMuted, item]);
 
   const handleWatchParty = () => {
     if (!item) return;
@@ -89,32 +104,31 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
             </button>
 
             {/* Hero / Trailer area */}
-            <div className="relative aspect-video rounded-t-2xl overflow-hidden bg-black">
-              {showTrailer && mainTrailer ? (
-                <iframe
-                  className="w-full h-full border-0"
-                  src={`https://www.youtube.com/embed/${mainTrailer.key}?autoplay=1&rel=0`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title={mainTrailer.name}
-                />
-              ) : (
-                <>
-                  {img(item.backdrop_path, "w1280") ? (
-                    <img src={img(item.backdrop_path, "w1280")!} alt={getTitle(item)} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-surface" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-                </>
+            <div className="relative aspect-video rounded-t-2xl overflow-hidden bg-black group/hero">
+              {mainTrailer && (
+                <div className="absolute inset-0 z-0">
+                  <iframe
+                    ref={iframeRef}
+                    className="w-full h-full border-0 scale-[1.3] pointer-events-none transition-transform duration-1000 group-hover/hero:scale-[1.4]"
+                    src={`https://www.youtube-nocookie.com/embed/${mainTrailer.key}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&modestbranding=1&loop=1&playlist=${mainTrailer.key}&playsinline=1&enablejsapi=1`}
+                    allow="autoplay; encrypted-media"
+                  />
+                </div>
               )}
-
-              {showTrailer && (
+              
+              {!mainTrailer && img(item.backdrop_path, "w1280") && (
+                <img src={img(item.backdrop_path, "w1280")!} alt={getTitle(item)} className="w-full h-full object-cover" />
+              )}
+              
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80 z-10" />
+              
+              {/* Overlay Mute Toggle */}
+              {mainTrailer && (
                 <button
-                  onClick={() => setShowTrailer(false)}
-                  className="absolute top-3 right-3 z-10 glass rounded-full p-2 text-white hover:text-white/70 transition-colors"
+                  onClick={toggleMute}
+                  className="absolute bottom-6 right-6 z-20 glass rounded-full p-3 text-white hover:bg-white/20 transition-all shadow-2xl opacity-0 group-hover/hero:opacity-100"
                 >
-                  <X size={16} />
+                  {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                 </button>
               )}
             </div>
@@ -134,32 +148,64 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
 
               {/* Action Buttons always visible */}
               <div className="flex items-center gap-3 mb-8 flex-wrap">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => { onClose(); navigate(`/${type}/${item.id}?autoplay=1${type === "tv" ? `&season=${selectedSeason}&episode=1` : ""}`); }}
-                  className="flex items-center gap-2 bg-[#E11D48] text-white px-8 py-3.5 rounded-full font-bold text-sm hover:bg-[#E11D48]/90 transition-all shadow-[0_4px_20px_-5px_#E11D48]"
+                  className="flex items-center gap-2 bg-accent text-white px-10 py-4 rounded-full font-black text-xs uppercase tracking-[0.2em] hover:bg-accent/90 transition-all shadow-xl shadow-accent/20"
                 >
                   <Play size={16} fill="currentColor" />
                   {type === "movie" ? "Play Movie" : "Play S1 E1"}
-                </button>
+                </motion.button>
 
                 {!showTrailer && mainTrailer && (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setShowTrailer(true)}
-                    className="flex items-center gap-2 bg-white/10 border border-white/10 text-white px-6 py-3.5 rounded-full font-semibold text-sm hover:bg-white/20 transition-all"
+                    className="flex items-center gap-2 bg-white/5 border border-white/5 text-white px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all shadow-xl"
                   >
                     <Film size={16} />
                     Watch Trailer
-                  </button>
+                  </motion.button>
                 )}
 
-                <button
-                  onClick={handleWatchParty}
-                  className="flex items-center gap-2 bg-white/10 border border-white/10 text-white px-6 py-3.5 rounded-full font-semibold text-sm hover:bg-white/20 transition-all"
-                >
-                  <Users size={16} />
-                  Watch Party
-                </button>
-              </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleWatchParty}
+                    className="flex items-center gap-2 bg-white/5 border border-white/5 text-white px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all shadow-xl"
+                  >
+                    <Users size={16} />
+                    Watch Party
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      if (isInWatchlist(item.id)) {
+                        removeFromWatchlist(item.id);
+                      } else {
+                        addToWatchlist({
+                          tmdb_id: item.id,
+                          media_type: type,
+                          title: getTitle(item),
+                          poster_path: item.poster_path,
+                          backdrop_path: item.backdrop_path,
+                        });
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all border shadow-xl ${
+                      isInWatchlist(item.id) 
+                        ? "bg-green-500/10 border-green-500/30 text-green-500" 
+                        : "bg-white/5 border-white/5 text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {isInWatchlist(item.id) ? <Check size={16} /> : <Plus size={16} />}
+                    {isInWatchlist(item.id) ? "In Watchlist" : "Watchlist"}
+                  </motion.button>
+                </div>
 
               {detail?.tagline && (
                 <p className="text-meta italic text-sm mb-3">"{detail.tagline}"</p>

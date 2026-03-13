@@ -1,142 +1,163 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { TMDBMovie, img, getTitle, getYear, getContentType, fetchTrailers } from "@/lib/tmdb";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Volume2, VolumeX } from "lucide-react";
+import { Play, Plus, Check, Volume2, VolumeX, Info } from "lucide-react";
+import { usePersistentMute } from "@/hooks/usePersistentMute";
+import { useWatchlist } from "@/hooks/useWatchlist";
 
 interface ContentCardProps {
   item: TMDBMovie;
   onClick: (item: TMDBMovie) => void;
+  priority?: boolean;
 }
 
-const ContentCard = ({ item, onClick }: ContentCardProps) => {
+const ContentCard = ({ item, onClick, priority = false }: ContentCardProps) => {
   const poster = img(item.poster_path, "w500");
+  const backdrop = img(item.backdrop_path, "w780");
   const navigate = useNavigate();
   const type = getContentType(item);
   const [isHovered, setIsHovered] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const { isMuted, toggleMute } = usePersistentMute();
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const hoverTimer = useRef<NodeJS.Timeout | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { data: trailers } = useQuery({
     queryKey: ["trailers", item.id, type],
     queryFn: () => fetchTrailers(item.id, type),
-    enabled: isHovered, // Only fetch when hovered
-    staleTime: 1000 * 60 * 60, // 1 hour
+    enabled: isHovered,
+    staleTime: 1000 * 60 * 60,
   });
 
-  // Toggle Youtube audio seamlessly via postMessage
-  const toggleMute = (e: React.MouseEvent) => {
+  const handleToggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    toggleMute();
+  };
+
+  useEffect(() => {
     if (iframeRef.current?.contentWindow) {
-      const func = isMuted ? "unMute" : "mute";
+      const func = isMuted ? "mute" : "unMute";
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: "command", func: func, args: [] }),
         "*"
       );
-      setIsMuted(!isMuted);
     }
-  };
-
-  const handleClick = () => {
-    onClick(item); // opens DetailView overlay
-  };
+  }, [isMuted, isHovered]);
 
   const handleMouseEnter = () => {
-    // Delay trailer playback to avoid spamming network while scrolling fast
     hoverTimer.current = setTimeout(() => {
       setIsHovered(true);
-    }, 600);
+    }, 500);
   };
 
   const handleMouseLeave = () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     setIsHovered(false);
-    setIsMuted(true); // reset audio state
   };
 
   const trailer = trailers?.[0];
 
   return (
-    <div
-      onClick={handleClick}
+    <div 
+      className="relative flex-shrink-0 w-[130px] sm:w-[160px] md:w-[200px]"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onFocus={handleMouseEnter}
-      onBlur={handleMouseLeave}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") handleClick();
-      }}
-      className="content-card flex-shrink-0 w-[130px] sm:w-[160px] md:w-[200px] group focus:outline-none relative active:scale-[0.97] touch-manipulation cursor-pointer"
     >
-      <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2 sm:mb-3">
-        {/* Main Poster Image */}
+      {/* Base Poster (Portrait) */}
+      <motion.div
+        className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface cursor-pointer shadow-lg shadow-black/40 group border border-white/5"
+        onClick={() => onClick(item)}
+      >
         {poster ? (
-          <img
-            src={poster}
-            alt={getTitle(item)}
-            className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 
-              ${isHovered ? 'scale-110 opacity-0' : 'scale-100 opacity-100'}`}
-            loading="lazy"
-          />
+          <img src={poster} alt={getTitle(item)} className="w-full h-full object-cover" loading={priority ? "eager" : "lazy"} />
         ) : (
-          <div className="absolute inset-0 w-full h-full flex items-center justify-center text-meta text-sm bg-surface">
-            No Image
-          </div>
+          <div className="w-full h-full flex items-center justify-center text-meta text-xs">No Image</div>
         )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      </motion.div>
 
-        <AnimatePresence>
-          {isHovered && trailer && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8 }}
-              className="absolute inset-0 bg-black z-10 scale-110"
-            >
-              <iframe
-                ref={iframeRef}
-                src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&modestbranding=1&loop=1&playlist=${trailer.key}&playsinline=1&enablejsapi=1`}
-                className="w-full h-full object-cover scale-150 pointer-events-none"
-                allow="autoplay; encrypted-media"
-              />
-              <div className="absolute inset-0 shadow-[inset_0_0_40px_rgba(0,0,0,0.8)] pointer-events-none" />
+      {/* Expanded Hover State (Landscape) */}
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1.1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 450, damping: 30 }}
+            className="absolute z-[200] top-0 left-[-30%] bg-[#181818] rounded-xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,1)] border border-white/10"
+            style={{ width: "160%", pointerEvents: "auto", transformOrigin: "center center" }}
+          >
+            {/* Video / Backdrop Area */}
+            <div className="relative aspect-video w-full bg-black">
+              {trailer ? (
+                <iframe
+                  ref={iframeRef}
+                  src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&modestbranding=1&loop=1&playlist=${trailer.key}&playsinline=1&enablejsapi=1`}
+                  className="w-full h-full object-cover scale-[1.1] pointer-events-none"
+                  allow="autoplay; encrypted-media"
+                />
+              ) : (
+                <img src={backdrop || poster || ""} alt="" className="w-full h-full object-cover" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-transparent to-transparent" />
               
-              {/* Mute toggle button - placed securely so it doesn't interrupt card clicks */}
-              <div
-                onClick={toggleMute}
-                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white border border-white/10 hover:bg-black/60 transition-all z-30 pointer-events-auto cursor-pointer"
-                role="button"
+              <button
+                onClick={handleToggleMute}
+                className="absolute bottom-4 right-4 p-2 rounded-full bg-black/60 border border-white/10 text-white hover:bg-black transition-colors"
+                title={isMuted ? "Unmute" : "Mute"}
               >
-                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="p-4 pt-2">
+              <div className="flex items-center gap-2 mb-3">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => navigate(`/${type}/${item.id}?autoplay=1`)}
+                  className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-black shadow-lg"
+                >
+                  <Play size={20} fill="currentColor" />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => {
+                    if (isInWatchlist(item.id)) removeFromWatchlist(item.id);
+                    else addToWatchlist({ tmdb_id: item.id, media_type: type, title: getTitle(item), poster_path: item.poster_path, backdrop_path: item.backdrop_path });
+                  }}
+                  className={`w-10 h-10 rounded-full border border-white/40 flex items-center justify-center text-white transition-colors hover:border-white ${isInWatchlist(item.id) ? "bg-green-500/20 border-green-500" : "bg-white/10"}`}
+                >
+                  {isInWatchlist(item.id) ? <Check size={18} className="text-green-400" /> : <Plus size={18} />}
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.15, backgroundColor: "rgba(255,255,255,0.2)" }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => onClick(item)}
+                  className="w-10 h-10 rounded-full border border-white/40 flex items-center justify-center text-white transition-colors bg-white/10 ml-auto"
+                >
+                  <Info size={18} />
+                </motion.button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
-        {/* Info overlay inside card bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent pt-12 pb-3 px-3 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 z-20">
-          <p className="text-[12px] sm:text-sm text-white font-bold truncate leading-tight drop-shadow-md">
-            {getTitle(item)}
-          </p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] sm:text-xs text-white/80 font-medium bg-white/20 px-1.5 rounded">{getYear(item)}</span>
-            <span className="text-[10px] sm:text-xs text-green-400 font-bold drop-shadow-md">★ {item.vote_average?.toFixed(1)}</span>
-          </div>
-        </div>
-
-        {/* Glow effect */}
-        <div className="card-glow absolute -inset-1 rounded-xl bg-accent/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
-      </div>
-
-      {/* Text below card (hidden on hover for cleaner look) */}
-      <p className="text-[12px] sm:text-[13px] text-foreground/70 group-hover:text-transparent transition-colors truncate text-left font-medium pb-1 mt-1">
-        {getTitle(item)}
-      </p>
+              <div className="flex items-center gap-2 text-[12px] font-bold text-meta uppercase tracking-wider mb-2">
+                <span className="text-green-400 font-black">★ {item.vote_average?.toFixed(1)}</span>
+                <span className="w-1 h-1 rounded-full bg-white/20" />
+                <span>{getYear(item)}</span>
+                <span className="w-1 h-1 rounded-full bg-white/20" />
+                <span className="border border-white/20 px-1 rounded-sm text-[10px]">{type}</span>
+              </div>
+              
+              <h4 className="text-sm font-black text-white truncate leading-tight">{getTitle(item)}</h4>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
