@@ -11,6 +11,23 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      '/api/tmdb': {
+        target: 'https://api.themoviedb.org/3',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/tmdb/, '')
+      },
+      '/api/img': {
+        target: 'https://image.tmdb.org/t/p',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/img/, '')
+      },
+      '/api/supabase': {
+        target: 'https://qzadtgjcztwomgujqkqk.supabase.co',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/supabase/, '')
+      }
+    }
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

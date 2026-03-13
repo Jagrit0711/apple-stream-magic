@@ -51,7 +51,7 @@ const NAV_ITEMS = [
 ];
 
 const img = (path: string | null, size = "w500") =>
-  path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
+  path ? `/api/img/${size}${path}` : null;
 
 const getTitle = (item: TMDBMovie) => item.title || item.name || "Untitled";
 const getYear  = (item: TMDBMovie) => (item.release_date || item.first_air_date || "").slice(0, 4);

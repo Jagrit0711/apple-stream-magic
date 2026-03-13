@@ -1,0 +1,4 @@
+/api/tmdb/* https://api.themoviedb.org/3/:splat 200
+/api/img/* https://image.tmdb.org/t/p/:splat 200
+/api/supabase/* https://qzadtgjcztwomgujqkqk.supabase.co/:splat 200
+/* /index.html 200
