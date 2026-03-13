@@ -48,17 +48,35 @@ export interface TMDBGenre {
   name: string;
 }
 
+const CORS_PROXIES = [
+  (url: string) => url, // direct first
+  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+];
+
 async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`${TMDB_BASE}${endpoint}`);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Bearer ${TMDB_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-  });
-  if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
-  return res.json();
+  const finalUrl = url.toString();
+
+  for (const proxyFn of CORS_PROXIES) {
+    try {
+      const proxiedUrl = proxyFn(finalUrl);
+      const res = await fetch(proxiedUrl, {
+        headers: {
+          Authorization: `Bearer ${TMDB_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.warn("Proxy failed:", err);
+    }
+  }
+  console.error("All TMDB fetch attempts failed for:", finalUrl);
+  throw new Error("All TMDB fetch attempts failed");
 }
 
 export const fetchTrending = () =>
@@ -133,6 +151,24 @@ export const fetchSimilar = (id: number, type: "movie" | "tv") =>
 
 export const fetchTrendingDay = () =>
   tmdbFetch<{ results: TMDBMovie[] }>("/trending/all/day").then(r => r.results);
+
+export interface TMDBVideo {
+  id: string;
+  key: string;
+  name: string;
+  site: string;
+  type: string;
+  official: boolean;
+}
+
+export const fetchTrailers = async (id: number, type: "movie" | "tv"): Promise<TMDBVideo[]> => {
+  const data = await tmdbFetch<{ results: TMDBVideo[] }>(`/${type}/${id}/videos`);
+  const trailers = data.results.filter(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"));
+  return trailers.sort((a, b) => (b.official ? 1 : 0) - (a.official ? 1 : 0));
+};
+
+export const fetchByIdAndType = async (id: number, type: "movie" | "tv"): Promise<TMDBDetail> =>
+  type === "movie" ? fetchMovieDetail(id) : fetchTVDetail(id);
 
 export const getContentType = (item: TMDBMovie): "movie" | "tv" =>
   item.media_type === "tv" || item.first_air_date ? "tv" : "movie";
