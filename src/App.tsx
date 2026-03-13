@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import PasswordGate from "@/components/PasswordGate";
+import MainLayout from "@/components/MainLayout";
 import Index from "./pages/Index.tsx";
 import Movies from "./pages/Movies.tsx";
 import TVShows from "./pages/TVShows.tsx";
@@ -24,18 +25,20 @@ const App = () => (
         <Toaster />
         <Sonner />
         <PasswordGate>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/movies" element={<Movies />} />
-              <Route path="/tv" element={<TVShows />} />
-              <Route path="/anime" element={<Anime />} />
-              <Route path="/movie/:id" element={<MoviePage />} />
-              <Route path="/tv/:id" element={<TVPage />} />
-              <Route path="/watch-party/:roomId" element={<WatchParty />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <MainLayout>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/movies" element={<Movies />} />
+                <Route path="/tv" element={<TVShows />} />
+                <Route path="/anime" element={<Anime />} />
+                <Route path="/movie/:id" element={<MoviePage />} />
+                <Route path="/tv/:id" element={<TVPage />} />
+                <Route path="/watch-party/:roomId" element={<WatchParty />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </MainLayout>
           </BrowserRouter>
         </PasswordGate>
       </TooltipProvider>

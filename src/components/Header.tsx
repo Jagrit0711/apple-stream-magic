@@ -45,9 +45,9 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
     >
       <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-3 sm:py-4 max-w-[1600px] mx-auto">
         <div className="flex items-center gap-4 sm:gap-8">
-          <div className="flex items-baseline gap-0">
-            <span className="font-semibold text-lg tracking-tight text-foreground">Watch</span>
-            <span className="text-[10px] font-medium text-meta ml-1.5 tracking-wider uppercase">by zuup</span>
+          <div className="flex flex-col gap-0 cursor-pointer" onClick={() => navigate("/")}>
+            <span className="font-bold text-2xl sm:text-3xl tracking-tighter text-foreground leading-none">Watch</span>
+            <span className="text-[10px] font-black text-meta tracking-[0.3em] uppercase opacity-60 mt-0.5 ml-4">by zuup</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -101,12 +101,25 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
 
           <div className="relative hidden md:block">
             <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => user ? setMenuOpen(!menuOpen) : onAuthClick()}
-              className="p-3 rounded-full text-meta hover:text-foreground hover:bg-white/5 transition-all duration-300 touch-manipulation"
+              className={`flex items-center gap-2 transition-all duration-300 touch-manipulation ${
+                user 
+                  ? "p-1 rounded-full bg-white/5 hover:bg-white/10" 
+                  : "px-5 py-2.5 rounded-full bg-accent text-white shadow-xl shadow-accent/20 hover:scale-105"
+              }`}
             >
-              <User size={20} />
+              {user ? (
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center text-[13px] font-black uppercase text-white shadow-lg border border-white/10">
+                  {profile?.display_name?.charAt(0) || user.email?.charAt(0) || 'U'}
+                </div>
+              ) : (
+                <>
+                  <User size={18} />
+                  <span className="text-[12px] font-black uppercase tracking-wider">Join Now</span>
+                </>
+              )}
             </motion.button>
             <AnimatePresence>
               {user && menuOpen && (

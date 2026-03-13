@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { useState } from "react";
+import { useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -19,24 +18,22 @@ import {
   fetchMoviesByGenre,
   fetchTop10Global,
   fetchTop10Region,
+  getContentType
 } from "@/lib/tmdb";
 import { useAuth } from "@/hooks/useAuth";
 import { useWatchHistory } from "@/hooks/useWatchHistory";
 import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
-import { useContentActions } from "@/hooks/useContentActions";
-import Header from "@/components/Header";
 import FeaturedHero from "@/components/FeaturedHero";
 import ContentShelf from "@/components/ContentShelf";
 import Top10Shelf from "@/components/Top10Shelf";
-import DetailView from "@/components/DetailView";
-import VideoPlayer from "@/components/VideoPlayer";
-import SearchOverlay from "@/components/SearchOverlay";
 import ContinueWatchingShelf from "@/components/ContinueWatchingShelf";
-import AuthModal from "@/components/AuthModal";
 import Onboarding from "@/components/Onboarding";
 import Landing from "@/components/Landing";
-import MobileNavBar from "@/components/MobileNavBar";
+import MobileCategories from "@/components/MobileCategories";
+import { useIsMobile } from "@/hooks/use-mobile";
 import TabletLayout from "@/components/TabletLayout";
+import { SkeletonShelf, SkeletonHero } from "@/components/Skeletons";
+import { useLayout } from "@/components/MainLayout";
 
 const Index = () => {
   const { user, profile } = useAuth();
@@ -49,6 +46,8 @@ const Index = () => {
     return /(tablet|ipad|playbook|macintosh.*touch)/i.test(ua) && !/mobile/i.test(ua);
   }, []);
 
+  const { setSelectedItem, setPlayer, setAuthOpen } = useLayout();
+  
   const { data: trending = [] as TMDBMovie[] } = useQuery({ queryKey: ["trending-week"], queryFn: fetchTrendingWeek });
   const { data: trendingDay = [] as TMDBMovie[] } = useQuery({ queryKey: ["trending-day"], queryFn: fetchTrendingDay });
   const { data: moviesData } = useQuery({ queryKey: ["popular-movies"], queryFn: () => fetchPopularMovies() });
@@ -87,12 +86,9 @@ const Index = () => {
     enabled: favoriteGenres.length > 1,
   });
 
-  const allItems = [...trending, ...trendingDay, ...movies, ...tvShows, ...anime, ...nowPlaying, ...topRatedMovies, ...popularTV];
-
-  const {
-    selectedItem, setSelectedItem, player, setPlayer, searchOpen, setSearchOpen,
-    authOpen, setAuthOpen, handleSelect, handlePlay, handlePlayDirect,
-  } = useContentActions(allItems);
+  const handleSelect = (item: TMDBMovie) => setSelectedItem(item);
+  const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number) => setPlayer({ id, type, season: s, episode: e });
+  const handlePlay = (item: TMDBMovie) => handlePlayDirect(item.id, getContentType(item));
 
   const genreNameById = (id: number) => {
     const genres: Record<number, string> = { 28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime", 99: "Documentary", 18: "Drama", 14: "Fantasy", 27: "Horror", 10749: "Romance", 878: "Sci-Fi", 53: "Thriller" };
@@ -139,22 +135,8 @@ const Index = () => {
     return s.filter(shelf => shelf.items && shelf.items.length > 0);
   }, [trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, genreMovies1, genreMovies2, favoriteGenres, recommendations, actionMovies, sciFiMovies, comedyTV, familyMovies]);
 
-  const overlays = (
-    <>
-      <DetailView item={selectedItem} onClose={() => setSelectedItem(null)} onPlay={handlePlayDirect} />
-      {player && <VideoPlayer contentId={player.id} type={player.type} season={player.season} episode={player.episode} onClose={() => setPlayer(null)} />}
-      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} onSelect={handleSelect} />
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
-    </>
-  );
-
   if (!user && trendingDay.length > 0) {
-    return (
-      <>
-        <Landing trending={trendingDay} onAuthClick={() => setAuthOpen(true)} />
-        {overlays}
-      </>
-    );
+    return <Landing trending={trendingDay} onAuthClick={() => setAuthOpen(true)} />;
   }
 
   return (
@@ -170,95 +152,135 @@ const Index = () => {
           continueWatching={continueWatching}
           onSelect={handleSelect}
           onPlay={handlePlay}
-          onSearchClick={() => setSearchOpen(true)}
+          onSearchClick={() => {}}
           onAuthClick={() => setAuthOpen(true)}
           user={user}
           profile={profile}
         />
       ) : (
-        <div className="mobile-layout-wrapper min-h-screen bg-background overflow-x-hidden">
-          <Header onSearch={() => {}} onNavChange={() => {}} activeNav="Home" onAuthClick={() => setAuthOpen(true)} onSearchClick={() => setSearchOpen(true)} />
-          {trending.length > 0 && <FeaturedHero items={trending} onSelect={handleSelect} onPlay={handlePlay} />}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className={`${trending.length > 0 ? "pt-2 sm:pt-4" : "pt-20 sm:pt-24"} pb-20 md:pb-12`}
-        >
-          {user && continueWatching.length > 0 && (
-            <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
-          )}
-          {user && recentlyWatched.length > 0 && (
-            <motion.section 
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="mb-8 sm:mb-10"
-            >
-              <div className="px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-3 sm:mb-4">
-                <h3 className="font-semibold text-sm sm:text-base text-foreground tracking-tight">Recently Watched</h3>
+        <div className="pb-24">
+          <div className={`md:hidden relative`}>
+            <MobileCategories />
+          </div>
+
+          {trending.length === 0 ? (
+            <div className="pt-20 lg:pt-0">
+              <SkeletonHero />
+              <div className="-mt-20 relative z-10 space-y-12">
+                <SkeletonShelf />
+                <SkeletonShelf />
+                <SkeletonShelf />
               </div>
-              <div className="shelf-scroll flex gap-2.5 sm:gap-3 overflow-x-auto px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto">
-                {recentlyWatched.map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => handlePlayDirect(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
-                    className="flex-shrink-0 w-[120px] sm:w-[160px] group focus:outline-none active:scale-[0.97] touch-manipulation"
+            </div>
+          ) : (
+            <>
+              <FeaturedHero items={trending} onPlay={handlePlay} onSelect={handleSelect} />
+              
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="relative z-10 -mt-20 md:-mt-32 pb-24 md:pb-12"
+              >
+                {user && continueWatching.length > 0 && (
+                  <ContinueWatchingShelf items={continueWatching} onPlay={handlePlayDirect} />
+                )}
+                
+                {user && recentlyWatched.length > 0 && (
+                  <motion.section 
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.6, delay: 0.1 }}
+                    className="mb-8 sm:mb-10"
                   >
-                    <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2">
-                      {item.poster_path ? (
-                        <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-meta text-sm">No Image</div>
-                      )}
+                     <div className="px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-3 sm:mb-4">
+                      <h3 className="font-semibold text-sm sm:text-base text-foreground tracking-tight">Recently Watched</h3>
                     </div>
-                    <p className="text-[12px] sm:text-[13px] text-foreground/70 truncate text-left font-medium">{item.title}</p>
-                  </button>
-                ))}
-              </div>
-            </motion.section>
-          )}
+                    <div className="shelf-scroll flex gap-2.5 sm:gap-3 overflow-x-auto px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto">
+                      {recentlyWatched.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => handlePlayDirect(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
+                          className="flex-shrink-0 w-[120px] sm:w-[160px] group focus:outline-none active:scale-[0.97] touch-manipulation"
+                        >
+                          <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2">
+                            {item.poster_path ? (
+                              <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-meta text-sm">No Image</div>
+                            )}
+                          </div>
+                          <p className="text-[12px] sm:text-[13px] text-foreground/70 truncate text-left font-medium">{item.title}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.section>
+                )}
 
-          {/* Special Top 10 Shelves with staggered entrance */}
-          {top10MoviesIN.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ type: "spring", damping: 20 }}>
-              <Top10Shelf title="Top 10 Movies in India: Netflix & Prime" items={top10MoviesIN} onSelect={handleSelect} />
-            </motion.div>
-          )}
-          {top10TVIN.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ type: "spring", damping: 20, delay: 0.1 }}>
-              <Top10Shelf title="Top 10 TV Shows in India: Netflix & Prime" items={top10TVIN} onSelect={handleSelect} />
-            </motion.div>
-          )}
-          {top10MoviesGlobal.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ type: "spring", damping: 20, delay: 0.2 }}>
-              <Top10Shelf title="Top 10 Movies Globally Today" items={top10MoviesGlobal} onSelect={handleSelect} />
-            </motion.div>
-          )}
-          {top10TVGlobal.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ type: "spring", damping: 20, delay: 0.3 }}>
-              <Top10Shelf title="Top 10 TV Shows Globally Today" items={top10TVGlobal} onSelect={handleSelect} />
-            </motion.div>
-          )}
+                {/* Interleaved Shelves */}
+                {(() => {
+                  const allShelves = [];
+                  let contentShelfIndex = 0;
 
-          {shelves.filter(s => !s.title.includes("Top 10")).map(({ title, items }, idx) => (
-            <motion.div
-              key={title}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.7, delay: idx * 0.05 + 0.2 }}
-            >
-              <ContentShelf title={title} items={items} onSelect={handleSelect} />
-            </motion.div>
-          ))}
-        </motion.div>
-        <MobileNavBar activeNav="Home" onNavChange={() => {}} onSearchClick={() => setSearchOpen(true)} onAuthClick={() => setAuthOpen(true)} />
-      </div>
+                  // 1. Top 10 Movies IN
+                  if (top10MoviesIN.length > 0) allShelves.push({ type: 'top10', title: 'Top 10 Movies in India', items: top10MoviesIN });
+                  
+                  // 2. First normal shelf (Trending Today)
+                  if (shelves.length > contentShelfIndex) {
+                    allShelves.push({ type: 'content', title: shelves[contentShelfIndex].title, items: shelves[contentShelfIndex].items });
+                    contentShelfIndex++;
+                  }
+
+                  // 3. Top 10 TV Shows IN
+                  if (top10TVIN.length > 0) allShelves.push({ type: 'top10', title: 'Top 10 TV Shows in India', items: top10TVIN });
+
+                  // 4. Second normal shelf
+                  if (shelves.length > contentShelfIndex) {
+                    allShelves.push({ type: 'content', title: shelves[contentShelfIndex].title, items: shelves[contentShelfIndex].items });
+                    contentShelfIndex++;
+                  }
+
+                  // 5. Top 10 Movies Global
+                  if (top10MoviesGlobal.length > 0) allShelves.push({ type: 'top10', title: 'Top 10 Movies Globally', items: top10MoviesGlobal });
+
+                  // 6. Third normal shelf
+                  if (shelves.length > contentShelfIndex) {
+                    allShelves.push({ type: 'content', title: shelves[contentShelfIndex].title, items: shelves[contentShelfIndex].items });
+                    contentShelfIndex++;
+                  }
+
+                  // 7. Top 10 TV Global
+                  if (top10TVGlobal.length > 0) allShelves.push({ type: 'top10', title: 'Top 10 TV Shows Globally', items: top10TVGlobal });
+
+                  // 8. Add remaining shelves (excluding any stray top 10s if they were in the main shelves array)
+                  for (let i = contentShelfIndex; i < shelves.length; i++) {
+                    if (!shelves[i].title.includes("Top 10")) {
+                      allShelves.push({ type: 'content', title: shelves[i].title, items: shelves[i].items });
+                    }
+                  }
+
+                  return allShelves.map((shelf, idx) => (
+                    <motion.div
+                      key={`${shelf.type}-${shelf.title}`}
+                      initial={{ opacity: 0, y: 40 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: "-50px" }}
+                      transition={{ duration: 0.7, delay: idx * 0.05 + 0.1 }}
+                    >
+                      {shelf.type === 'top10' ? (
+                        <Top10Shelf title={shelf.title} items={shelf.items} onSelect={handleSelect} />
+                      ) : (
+                        <ContentShelf title={shelf.title} items={shelf.items} onSelect={handleSelect} />
+                      )}
+                    </motion.div>
+                  ));
+                })()}
+              </motion.div>
+            </>
+          )}
+        </div>
       )}
-
-      {overlays}
     </>
   );
 };

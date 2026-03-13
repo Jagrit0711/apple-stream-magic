@@ -22,9 +22,9 @@ const ContentShelf = ({ title, items, onSelect }: ContentShelfProps) => {
   if (!items.length) return null;
 
   return (
-    <section className="mb-6 sm:mb-8">
-      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-2 sm:mb-3">
-        <h3 className="font-semibold text-sm sm:text-base text-foreground tracking-tight">{title}</h3>
+    <section className="mb-1 sm:mb-8">
+      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-1">
+        <h3 className="font-bold text-lg sm:text-2xl text-foreground tracking-tight leading-tight">{title}</h3>
         <div className="hidden sm:flex gap-1">
           <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => scroll("left")} className="p-2 rounded-full text-meta hover:text-foreground hover:bg-[hsla(0,0%,100%,0.06)] transition-all outline-none">
             <ChevronLeft size={18} />
@@ -36,7 +36,7 @@ const ContentShelf = ({ title, items, onSelect }: ContentShelfProps) => {
       </div>
       <div
         ref={scrollRef}
-        className="shelf-scroll flex gap-2.5 sm:gap-3 overflow-x-auto overflow-y-visible px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto snap-x snap-mandatory pt-8 pb-12 -mt-8"
+        className="shelf-scroll flex gap-2.5 sm:gap-3 overflow-x-auto overflow-y-visible px-6 sm:px-8 md:px-12 max-w-[1700px] mx-auto snap-x snap-mandatory pt-4 pb-6 sm:pt-10 sm:pb-16 -mt-6 sm:-mt-10"
       >
         {items.map((item) => (
           <div key={item.id} className="snap-start">

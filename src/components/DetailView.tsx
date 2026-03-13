@@ -180,32 +180,32 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                     Watch Party
                   </motion.button>
 
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      if (isInWatchlist(item.id)) {
-                        removeFromWatchlist(item.id);
-                      } else {
-                        addToWatchlist({
-                          tmdb_id: item.id,
-                          media_type: type,
-                          title: getTitle(item),
-                          poster_path: item.poster_path,
-                          backdrop_path: item.backdrop_path,
-                        });
-                      }
-                    }}
-                    className={`flex items-center gap-2 px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all border shadow-xl ${
-                      isInWatchlist(item.id) 
-                        ? "bg-green-500/10 border-green-500/30 text-green-500" 
-                        : "bg-white/5 border-white/5 text-white hover:bg-white/10"
-                    }`}
-                  >
-                    {isInWatchlist(item.id) ? <Check size={16} /> : <Plus size={16} />}
-                    {isInWatchlist(item.id) ? "In Watchlist" : "Watchlist"}
-                  </motion.button>
-                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    if (isInWatchlist(item.id)) {
+                      removeFromWatchlist(item.id);
+                    } else {
+                      addToWatchlist({
+                        tmdb_id: item.id,
+                        media_type: type,
+                        title: getTitle(item),
+                        poster_path: item.poster_path,
+                        backdrop_path: item.backdrop_path,
+                      });
+                    }
+                  }}
+                  className={`flex items-center gap-2 px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all border shadow-xl ${
+                    isInWatchlist(item.id) 
+                      ? "bg-green-500/10 border-green-500/30 text-green-500" 
+                      : "bg-white/5 border-white/5 text-white hover:bg-white/10"
+                  }`}
+                >
+                  {isInWatchlist(item.id) ? <Check size={16} /> : <Plus size={16} />}
+                  {isInWatchlist(item.id) ? "In Watchlist" : "Watchlist"}
+                </motion.button>
+              </div>
 
               {detail?.tagline && (
                 <p className="text-meta italic text-sm mb-3">"{detail.tagline}"</p>

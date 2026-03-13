@@ -54,10 +54,18 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-family: 'Outfit', sans-serif;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .will-change-transform {
+    will-change: transform, opacity;
+    backface-visibility: hidden;
   }
 
   /* Rubber-band scrolling for iOS/Safari */
@@ -125,7 +133,19 @@ html {
   scrollbar-width: none;
   -ms-overflow-style: none;
   scroll-snap-type: x mandatory;
-  scroll-padding: 0 48px;
+  scroll-padding-left: 1.5rem; /* px-6 equivalent */
+}
+
+@media (min-width: 640px) {
+  .shelf-scroll {
+    scroll-padding-left: 2rem; /* px-8 equivalent */
+  }
+}
+
+@media (min-width: 768px) {
+  .shelf-scroll {
+    scroll-padding-left: 3rem; /* px-12 equivalent */
+  }
 }
 
 .shelf-scroll::-webkit-scrollbar {
