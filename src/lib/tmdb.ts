@@ -1,4 +1,4 @@
-const TMDB_BASE = "/api/tmdb";
+const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYWRhYzNmMzBhMmI3MDRiMDFmZDk3NzEwOWUxY2I5OSIsIm5iZiI6MTcyODQ2ODkwMC4zNDIwMDAyLCJzdWIiOiI2NzA2NTdhNGRjNTRmMjlkMGVhYjViYTciLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.yIMztIJtw7BbDEw0UhbWzA4Hh7ovRhzTstcvVcMatyE";
 const IMG_BASE = "https://image.tmdb.org/t/p";
 
@@ -50,7 +50,7 @@ export interface TMDBGenre {
 }
 
 async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
-  const url = new URL(window.location.origin + TMDB_BASE + endpoint);
+  const url = new URL(`${TMDB_BASE}${endpoint}`);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
   try {
@@ -61,27 +61,11 @@ async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {
       },
     });
     
-    if (res.ok) return await res.json();
-    
-    // If proxied fetch failed (likely local dev without proxy config or Vercel issues)
-    throw new Error(`Proxy failed: ${res.status}`);
+    if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
+    return await res.json();
   } catch (err) {
-    console.warn("Direct proxy failed, trying official TMDB endpoint directly:", err);
-    
-    // Try official TMDB directly. Note: This might still fail due to CORS in some browser environments
-    // unless TMDB allows the origin directly.
-    const directUrl = new URL("https://api.themoviedb.org/3" + endpoint);
-    Object.entries(params).forEach(([k, v]) => directUrl.searchParams.set(k, v));
-    
-    const finalRes = await fetch(directUrl.toString(), {
-      headers: {
-        Authorization: `Bearer ${TMDB_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-    });
-    
-    if (!finalRes.ok) throw new Error(`TMDB Direct failed: ${finalRes.status}`);
-    return await finalRes.json();
+    console.error("TMDB fetch failed:", err);
+    throw err;
   }
 }
 

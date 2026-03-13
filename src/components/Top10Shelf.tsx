@@ -144,9 +144,9 @@ const Top10Shelf = ({ title, items, onSelect }: Top10ShelfProps) => {
   if (!items.length) return null;
 
   return (
-    <section className="mb-6 sm:mb-8">
-      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-2 sm:mb-3">
-        <h3 className="font-semibold text-sm sm:text-base text-white tracking-tight flex items-center gap-2">
+    <section className="mb-1 sm:mb-8">
+      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-1">
+        <h3 className="font-bold text-lg sm:text-2xl text-white tracking-tight leading-tight flex items-center gap-2">
            {title}
         </h3>
         <div className="hidden sm:flex gap-1">
@@ -160,7 +160,7 @@ const Top10Shelf = ({ title, items, onSelect }: Top10ShelfProps) => {
       </div>
       <div
         ref={scrollRef}
-        className="shelf-scroll flex gap-8 sm:gap-14 overflow-x-auto overflow-y-visible px-8 sm:px-12 md:px-16 max-w-[1700px] mx-auto snap-x snap-mandatory pt-8 pb-12 no-scrollbar -mt-8"
+        className="shelf-scroll flex gap-10 sm:gap-14 overflow-x-auto overflow-y-visible px-10 sm:px-16 md:px-20 max-w-full snap-x snap-mandatory pt-4 sm:pt-6 pb-6 sm:pb-10 no-scrollbar -mt-4 sm:-mt-6"
       >
         {items.map((item, index) => (
           <Top10Card key={item.id} item={item} index={index} onSelect={onSelect} />

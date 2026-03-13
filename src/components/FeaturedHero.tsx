@@ -86,21 +86,21 @@ const FeaturedHero = ({ items, onSelect, onPlay }: FeaturedHeroProps) => {
         <>
           <button
             onClick={() => goTo(-1)}
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 p-2 sm:p-3 rounded-full bg-background/40 text-foreground/60 hover:text-foreground hover:bg-background/60 transition-all hidden sm:block"
+            className="absolute left-2 sm:left-4 top-[35%] -translate-y-1/2 z-20 p-2 sm:p-3 rounded-full bg-background/20 text-foreground/40 hover:text-foreground hover:bg-background/60 transition-all hidden sm:block backdrop-blur-sm"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={24} />
           </button>
           <button
             onClick={() => goTo(1)}
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 p-2 sm:p-3 rounded-full bg-background/40 text-foreground/60 hover:text-foreground hover:bg-background/60 transition-all hidden sm:block"
+            className="absolute right-2 sm:right-4 top-[35%] -translate-y-1/2 z-20 p-2 sm:p-3 rounded-full bg-background/20 text-foreground/40 hover:text-foreground hover:bg-background/60 transition-all hidden sm:block backdrop-blur-sm"
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={24} />
           </button>
         </>
       )}
 
       {/* Content */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 md:px-8 pb-16 sm:pb-20 max-w-[1600px] mx-auto">
+      <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 md:px-8 pb-32 md:pb-40 lg:pb-48 max-w-[1600px] mx-auto pointer-events-none *:pointer-events-auto">
         <AnimatePresence mode="wait">
           <motion.div
             key={item.id}

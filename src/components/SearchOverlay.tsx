@@ -109,17 +109,17 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[70] bg-background overscroll-contain flex flex-col pt-[max(20px,env(safe-area-inset-top))]"
-          initial={{ opacity: 0, y: 30 }}
+          className="fixed inset-0 z-[70] bg-background/95 backdrop-blur-md overscroll-contain flex flex-col pt-[max(10px,env(safe-area-inset-top))] will-change-transform"
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 30 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          exit={{ opacity: 0, y: 10 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
         >
           {/* Top Bar Container */}
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 pt-4 pb-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="flex-1 relative group">
-                <Search size={22} className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${query ? 'text-accent' : 'text-meta'}`} />
+                <Search size={20} className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${query ? 'text-accent' : 'text-meta'}`} />
                 <input
                   ref={inputRef}
                   type="text"
@@ -128,23 +128,24 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
                     setQuery(e.target.value);
                     if (selectedGenre) setSelectedGenre(null);
                   }}
-                  placeholder="Titles, people, genres..."
-                  className="w-full bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl pl-14 pr-12 py-4 sm:py-5 text-lg sm:text-xl text-foreground placeholder:text-meta focus:outline-none focus:border-accent/50 focus:bg-white/10 transition-all font-medium"
+                  autoFocus
+                  placeholder="Movies, TV or Anime..."
+                  className="w-full bg-white/5 border border-white/5 rounded-2xl pl-12 pr-10 py-3.5 sm:py-5 text-[15px] sm:text-xl text-foreground placeholder:text-meta/60 focus:outline-none focus:bg-white/10 transition-all font-medium"
                 />
                 {query && (
                   <button
                     onClick={() => setQuery("")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-white/10 text-meta hover:text-foreground transition-all"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-white/10 text-meta hover:text-foreground transition-all"
                   >
-                    <X size={20} />
+                    <X size={16} />
                   </button>
                 )}
               </div>
               <button
                 onClick={onClose}
-                className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-2xl bg-white/5 hover:bg-white/10 text-meta hover:text-foreground transition-all flex-shrink-0 border border-white/5"
+                className="text-[13px] font-black uppercase tracking-widest text-accent px-2"
               >
-                <X size={24} />
+                Cancel
               </button>
             </div>
 
@@ -270,18 +271,24 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
                       ))}
                     </div>
                   ) : currentResults && currentResults.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 sm:gap-8">
-                      {currentResults.map(item => (
+                    <motion.div 
+                      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 sm:gap-8 overflow-visible"
+                    >
+                      {currentResults.map((item, idx) => (
                         <motion.button
                           key={item.id}
-                          layout
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          whileHover={{ scale: 1.05, y: -5 }}
+                          initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ 
+                            type: "spring", 
+                            stiffness: 400, 
+                            damping: 30,
+                            delay: Math.min(idx * 0.05, 0.5) 
+                          }}
+                          whileHover={{ scale: 1.05, y: -8 }}
                           whileTap={{ scale: 0.98 }}
-                          transition={{ type: "spring", stiffness: 450, damping: 25 }}
                           onClick={() => handleSelect(item)}
-                          className="group relative flex flex-col focus:outline-none"
+                          className="group relative flex flex-col focus:outline-none z-10 hover:z-20"
                         >
                           <div className="relative aspect-[2/3] rounded-3xl overflow-hidden bg-surface mb-4 shadow-2xl transition-all duration-500 group-hover:shadow-accent/20">
                             {img(item.poster_path) ? (
@@ -309,7 +316,7 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
                           </div>
                         </motion.button>
                       ))}
-                    </div>
+                    </motion.div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-40 text-center">
                       <motion.div 

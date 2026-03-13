@@ -1,15 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { motion } from "framer-motion";
 import { 
-  User as UserIcon, Settings, LogOut, ArrowLeft, 
-  Trash2, Play, Calendar, Heart, ShieldCheck
+  User as UserIcon, Settings, LogOut, 
+  Trash2, Calendar, Heart, ShieldCheck
 } from "lucide-react";
-import Header from "@/components/Header";
 import ContentCard from "@/components/ContentCard";
-import { TMDBMovie, MOVIE_GENRES } from "@/lib/tmdb";
+import { MOVIE_GENRES } from "@/lib/tmdb";
 
 const Profile = () => {
   const { user, profile, signOut, updateProfile } = useAuth();
@@ -19,10 +18,13 @@ const Profile = () => {
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
   const [selectedGenres, setSelectedGenres] = useState<number[]>(profile?.favorite_genres || []);
 
-  if (!user) {
-    navigate("/");
-    return null;
-  }
+  useEffect(() => {
+    if (!user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  if (!user) return null;
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,13 +43,8 @@ const Profile = () => {
     );
   };
 
-  const watchlistMovies = watchlist.filter(i => i.media_type === "movie");
-  const watchlistTV = watchlist.filter(i => i.media_type === "tv");
-
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
-      <Header onSearch={() => {}} onNavChange={() => {}} activeNav="Profile" onAuthClick={() => {}} onSearchClick={() => navigate("/")} />
-      
+    <div className="min-h-screen bg-background text-white font-sans overflow-x-hidden">
       <div className="pt-24 pb-20 px-4 sm:px-6 md:px-8 max-w-6xl mx-auto">
         {/* Profile Hero */}
         <div className="glass-strong rounded-3xl p-6 sm:p-10 mb-10 border border-white/5 relative overflow-hidden">
@@ -61,7 +58,7 @@ const Profile = () => {
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} className="w-full h-full rounded-full object-cover border-4 border-background" alt="" />
                 ) : (
-                  <div className="w-full h-full rounded-full bg-surface border-4 border-background flex items-center justify-center text-3xl font-bold">
+                  <div className="w-full h-full rounded-full bg-surface border-4 border-background flex items-center justify-center text-3xl font-bold font-black">
                     {profile?.display_name?.charAt(0) || user.email?.charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -75,32 +72,32 @@ const Profile = () => {
                 </h1>
                 <div className="flex justify-center md:justify-start gap-2">
                   {profile?.onboarding_complete && (
-                    <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 flex items-center gap-1 uppercase tracking-widest">
+                    <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 flex items-center gap-1 uppercase tracking-widest leading-none">
                       <ShieldCheck size={10} /> Verified
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-meta text-sm mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-meta text-xs mb-6 font-bold uppercase tracking-wider">
                 <p className="flex items-center gap-2 justify-center md:justify-start">
-                  <Calendar size={14} /> Joined {new Date(profile?.created_at || "").toLocaleDateString()}
+                  <Calendar size={14} className="text-accent" /> Joined {new Date(profile?.created_at || "").toLocaleDateString()}
                 </p>
                 <p className="flex items-center gap-2 justify-center md:justify-start">
-                  <Heart size={14} /> {watchlist.length} items in watchlist
+                  <Heart size={14} className="text-accent" /> {watchlist.length} items in watchlist
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                 <button 
                   onClick={() => setIsEditing(!isEditing)}
-                  className="px-6 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold transition-all flex items-center gap-2"
+                  className="px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
                 >
                   <Settings size={14} /> Edit Profile
                 </button>
                 <button 
                   onClick={signOut}
-                  className="px-6 py-2 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-sm font-semibold transition-all flex items-center gap-2"
+                  className="px-6 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
                 >
                   <LogOut size={14} /> Sign Out
                 </button>
@@ -118,25 +115,25 @@ const Profile = () => {
               <form onSubmit={handleUpdateProfile} className="max-w-2xl">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-meta mb-3">Display Name</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-meta/60 mb-3">Display Name</label>
                     <input 
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-accent transition-all"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-accent transition-all font-bold"
                       placeholder="Your name"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-meta mb-3">Favorite Genres</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-meta/60 mb-3">Favorite Genres</label>
                     <div className="flex flex-wrap gap-2">
                       {MOVIE_GENRES.map(genre => (
                         <button
                           key={genre.id}
                           type="button"
                           onClick={() => toggleGenre(genre.id)}
-                          className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all border ${
                             selectedGenres.includes(genre.id)
                               ? "bg-accent border-accent text-white"
                               : "bg-white/5 border-white/10 text-meta hover:border-white/30"
@@ -153,11 +150,11 @@ const Profile = () => {
                   <button 
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="px-6 py-2 rounded-xl text-sm font-bold text-meta hover:text-foreground transition-colors"
+                    className="px-6 py-2 rounded-xl text-[10px] uppercase font-black tracking-widest text-meta hover:text-foreground transition-colors"
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="bg-accent text-white px-8 py-2 rounded-xl text-sm font-bold shadow-lg shadow-accent/20 hover:scale-105 transition-transform active:scale-95">
+                  <button type="submit" className="bg-accent text-white px-8 py-2 rounded-xl text-[10px] uppercase font-black tracking-widest shadow-lg shadow-accent/20 hover:scale-105 transition-transform active:scale-95">
                     Save Changes
                   </button>
                 </div>
@@ -168,23 +165,23 @@ const Profile = () => {
 
         {/* Watchlist Section */}
         <section className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold flex items-center gap-3">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-xl font-black uppercase tracking-widest flex items-center gap-3">
                My Watchlist
             </h2>
           </div>
 
           {!watchlistLoading && watchlist.length === 0 ? (
-            <div className="bg-surface/50 rounded-3xl p-12 text-center border-2 border-dashed border-white/5">
-              <p className="text-meta">Your watchlist is empty. Start adding some movies and shows!</p>
-              <button onClick={() => navigate("/")} className="mt-4 text-accent font-bold">Discover Content</button>
+            <div className="bg-white/[0.02] rounded-3xl p-16 text-center border-2 border-dashed border-white/5">
+              <p className="text-meta/60 text-sm font-bold">Your watchlist is empty. Start adding some movies and shows!</p>
+              <button onClick={() => navigate("/")} className="mt-4 text-accent text-xs font-black uppercase tracking-widest">Discover Content</button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
               {watchlist.map(item => (
                 <div key={item.id} className="relative group">
                   <div 
-                    className="cursor-pointer transition-transform hover:scale-105"
+                    className="cursor-pointer transition-transform hover:scale-105 active:scale-95"
                     onClick={() => navigate(`/${item.media_type}/${item.tmdb_id}`)}
                   >
                     <ContentCard 
@@ -201,9 +198,9 @@ const Profile = () => {
                   </div>
                   <button 
                     onClick={() => removeFromWatchlist(item.tmdb_id)}
-                    className="absolute top-2 right-2 p-2 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    className="absolute top-2 right-2 p-2 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                   </button>
                 </div>
               ))}
