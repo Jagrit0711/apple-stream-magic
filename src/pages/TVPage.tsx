@@ -3,7 +3,8 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTVDetail, fetchTVSeasonEpisodes, getTitle, img, fetchTrailers } from "@/lib/tmdb";
 import { motion } from "framer-motion";
-import { Play, ArrowLeft, Film, Users, Star, ChevronDown } from "lucide-react";
+import { Play, ArrowLeft, Film, Users, Star, ChevronDown, Plus, Check } from "lucide-react";
+import { useWatchlist } from "@/hooks/useWatchlist";
 import VideoPlayer from "@/components/VideoPlayer";
 import Header from "@/components/Header";
 
@@ -20,6 +21,7 @@ const TVPage = () => {
   );
   const [showTrailer, setShowTrailer] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState(autoSeason);
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["detail", tvId, "tv"],
@@ -144,6 +146,30 @@ const TVPage = () => {
             >
               <Users size={16} />
               Watch Party
+            </button>
+
+            <button
+              onClick={() => {
+                if (isInWatchlist(tvId)) {
+                  removeFromWatchlist(tvId);
+                } else {
+                  addToWatchlist({
+                    tmdb_id: tvId,
+                    media_type: "tv",
+                    title: getTitle(detail),
+                    poster_path: detail.poster_path,
+                    backdrop_path: detail.backdrop_path,
+                  });
+                }
+              }}
+              className={`flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold transition-all border ${
+                isInWatchlist(tvId) 
+                  ? "bg-green-500/10 border-green-500/30 text-green-500" 
+                  : "glass text-foreground hover:bg-white/10 transition-all"
+              }`}
+            >
+              {isInWatchlist(tvId) ? <Check size={16} /> : <Plus size={16} />}
+              {isInWatchlist(tvId) ? "In Watchlist" : "Add to Watchlist"}
             </button>
           </div>
         </div>

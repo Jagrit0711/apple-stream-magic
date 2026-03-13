@@ -12,6 +12,7 @@ import Anime from "./pages/Anime.tsx";
 import MoviePage from "./pages/MoviePage.tsx";
 import TVPage from "./pages/TVPage.tsx";
 import WatchParty from "./pages/WatchParty.tsx";
+import Profile from "./pages/Profile.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/movie/:id" element={<MoviePage />} />
               <Route path="/tv/:id" element={<TVPage />} />
               <Route path="/watch-party/:roomId" element={<WatchParty />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

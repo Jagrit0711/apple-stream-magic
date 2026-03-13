@@ -3,7 +3,8 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMovieDetail, getTitle, img, fetchTrailers } from "@/lib/tmdb";
 import { motion } from "framer-motion";
-import { Play, ArrowLeft, Film, Users, Star, Clock } from "lucide-react";
+import { Play, ArrowLeft, Film, Users, Star, Clock, Plus, Check } from "lucide-react";
+import { useWatchlist } from "@/hooks/useWatchlist";
 import VideoPlayer from "@/components/VideoPlayer";
 import Header from "@/components/Header";
 
@@ -16,6 +17,7 @@ const MoviePage = () => {
   const [player, setPlayer] = useState(autoplay);
   const [showTrailer, setShowTrailer] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["detail", movieId, "movie"],
@@ -137,6 +139,30 @@ const MoviePage = () => {
             >
               <Users size={16} />
               Watch Party
+            </button>
+
+            <button
+              onClick={() => {
+                if (isInWatchlist(movieId)) {
+                  removeFromWatchlist(movieId);
+                } else {
+                  addToWatchlist({
+                    tmdb_id: movieId,
+                    media_type: "movie",
+                    title: getTitle(detail),
+                    poster_path: detail.poster_path,
+                    backdrop_path: detail.backdrop_path,
+                  });
+                }
+              }}
+              className={`flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold transition-all border ${
+                isInWatchlist(movieId) 
+                  ? "bg-green-500/10 border-green-500/30 text-green-500" 
+                  : "glass text-foreground hover:bg-white/10"
+              }`}
+            >
+              {isInWatchlist(movieId) ? <Check size={16} /> : <Plus size={16} />}
+              {isInWatchlist(movieId) ? "In Watchlist" : "Add to Watchlist"}
             </button>
           </div>
         </div>

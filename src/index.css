@@ -56,11 +56,24 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Outfit', sans-serif;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', sans-serif;
+  /* Rubber-band scrolling for iOS/Safari */
+  .overscroll-contain {
+    overscroll-behavior: contain;
   }
+}
+
+html {
+  scroll-padding-top: 100px;
+}
+
+/* Perfect spring physics */
+:root {
+  --spring-easing: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --smooth-easing: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Glass morphism utilities */
@@ -111,6 +124,8 @@
 .shelf-scroll {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 48px;
 }
 
 .shelf-scroll::-webkit-scrollbar {
@@ -124,13 +139,29 @@
 
 @media (hover: hover) {
   .content-card:hover {
-    transform: scale(1.08) translateY(-8px);
+    transform: scale(1.04) translateY(-4px);
     z-index: 10;
+  }
+
+  .content-card:active {
+    transform: scale(0.98) translateY(0);
   }
 
   .content-card:hover .card-glow {
     opacity: 1;
   }
+}
+
+/* Micro-interactions */
+.tap-shake:active {
+  animation: tap-shake 0.2s ease-in-out;
+}
+
+@keyframes tap-shake {
+  0% { transform: scale(1); }
+  25% { transform: scale(0.97) rotate(-1deg); }
+  50% { transform: scale(0.97) rotate(1deg); }
+  100% { transform: scale(1); }
 }
 
 .card-glow {

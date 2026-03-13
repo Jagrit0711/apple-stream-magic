@@ -6,11 +6,21 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  profile: { display_name: string | null; onboarding_complete: boolean; favorite_genres: number[] } | null;
+  profile: {
+    id: string;
+    user_id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    onboarding_complete: boolean;
+    favorite_genres: number[];
+    created_at: string;
+    updated_at: string;
+  } | null;
   signUp: (email: string, password: string, displayName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   completeOnboarding: (genres: number[]) => Promise<void>;
+  updateProfile: (updates: Partial<AuthContextType["profile"]>) => Promise<{ error: any }>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -31,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("display_name, onboarding_complete, favorite_genres")
+      .select("*")
       .eq("user_id", userId)
       .single();
     if (data) setProfile(data as AuthContextType["profile"]);
@@ -87,12 +97,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile(p => p ? { ...p, onboarding_complete: true, favorite_genres: genres } : p);
   };
 
+  const updateProfile = async (updates: Partial<AuthContextType["profile"]>) => {
+    if (!user) return { error: "No user logged in" };
+    // @ts-ignore
+    const { error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("user_id", user.id);
+    
+    if (!error) {
+      setProfile(p => p ? { ...p, ...updates } : p);
+    }
+    return { error };
+  };
+
   const refreshProfile = async () => {
     if (user) await fetchProfile(user.id);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, profile, signUp, signIn, signOut, completeOnboarding, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, loading, profile, signUp, signIn, signOut, completeOnboarding, updateProfile, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
