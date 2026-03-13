@@ -60,13 +60,18 @@ const ContentCard = ({ item, onClick }: ContentCardProps) => {
   const trailer = trailers?.[0];
 
   return (
-    <button
+    <div
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onFocus={handleMouseEnter}
       onBlur={handleMouseLeave}
-      className="content-card flex-shrink-0 w-[130px] sm:w-[160px] md:w-[200px] group focus:outline-none relative active:scale-[0.97] touch-manipulation"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") handleClick();
+      }}
+      className="content-card flex-shrink-0 w-[130px] sm:w-[160px] md:w-[200px] group focus:outline-none relative active:scale-[0.97] touch-manipulation cursor-pointer"
     >
       <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2 sm:mb-3">
         {/* Main Poster Image */}
@@ -102,12 +107,13 @@ const ContentCard = ({ item, onClick }: ContentCardProps) => {
               <div className="absolute inset-0 shadow-[inset_0_0_40px_rgba(0,0,0,0.8)] pointer-events-none" />
               
               {/* Mute toggle button - placed securely so it doesn't interrupt card clicks */}
-              <button
+              <div
                 onClick={toggleMute}
-                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white border border-white/10 hover:bg-black/60 transition-all z-30 pointer-events-auto"
+                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white border border-white/10 hover:bg-black/60 transition-all z-30 pointer-events-auto cursor-pointer"
+                role="button"
               >
                 {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-              </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -128,10 +134,10 @@ const ContentCard = ({ item, onClick }: ContentCardProps) => {
       </div>
 
       {/* Text below card (hidden on hover for cleaner look) */}
-      <p className="text-[12px] sm:text-[13px] text-foreground/70 group-hover:text-transparent transition-colors truncate text-left font-medium pb-1">
+      <p className="text-[12px] sm:text-[13px] text-foreground/70 group-hover:text-transparent transition-colors truncate text-left font-medium pb-1 mt-1">
         {getTitle(item)}
       </p>
-    </button>
+    </div>
   );
 };
 

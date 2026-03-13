@@ -12,7 +12,8 @@ export interface WatchPartyState {
   contentType: "movie" | "tv";
   season?: number;
   episode?: number;
-  status: "waiting" | "playing";
+  status: "waiting" | "playing" | "countdown";
+  syncTime?: number;
   updatedBy: string;
   updatedAt: number;
 }
