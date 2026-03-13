@@ -1,4 +1,4 @@
-const TMDB_BASE = "https://api.themoviedb.org/3";
+const TMDB_BASE = "/api/tmdb";
 const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYWRhYzNmMzBhMmI3MDRiMDFmZDk3NzEwOWUxY2I5OSIsIm5iZiI6MTcyODQ2ODkwMC4zNDIwMDAyLCJzdWIiOiI2NzA2NTdhNGRjNTRmMjlkMGVhYjViYTciLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.yIMztIJtw7BbDEw0UhbWzA4Hh7ovRhzTstcvVcMatyE";
 const IMG_BASE = "https://image.tmdb.org/t/p";
 
@@ -49,35 +49,40 @@ export interface TMDBGenre {
   name: string;
 }
 
-const CORS_PROXIES = [
-  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`, // Use Cloudflare-backed proxy first to bypass blocks
-  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url: string) => url, // Direct access as fallback
-];
-
 async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
-  const url = new URL(`${TMDB_BASE}${endpoint}`);
+  const url = new URL(window.location.origin + TMDB_BASE + endpoint);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const finalUrl = url.toString();
 
-  for (const proxyFn of CORS_PROXIES) {
-    try {
-      const proxiedUrl = proxyFn(finalUrl);
-      const res = await fetch(proxiedUrl, {
-        headers: {
-          Authorization: `Bearer ${TMDB_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
-      const data = await res.json();
-      return data;
-    } catch (err) {
-      console.warn("Proxy failed:", err);
-    }
+  try {
+    const res = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${TMDB_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (res.ok) return await res.json();
+    
+    // If proxied fetch failed (likely local dev without proxy config or Vercel issues)
+    throw new Error(`Proxy failed: ${res.status}`);
+  } catch (err) {
+    console.warn("Direct proxy failed, trying official TMDB endpoint directly:", err);
+    
+    // Try official TMDB directly. Note: This might still fail due to CORS in some browser environments
+    // unless TMDB allows the origin directly.
+    const directUrl = new URL("https://api.themoviedb.org/3" + endpoint);
+    Object.entries(params).forEach(([k, v]) => directUrl.searchParams.set(k, v));
+    
+    const finalRes = await fetch(directUrl.toString(), {
+      headers: {
+        Authorization: `Bearer ${TMDB_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (!finalRes.ok) throw new Error(`TMDB Direct failed: ${finalRes.status}`);
+    return await finalRes.json();
   }
-  console.error("All TMDB fetch attempts failed for:", finalUrl);
-  throw new Error("All TMDB fetch attempts failed");
 }
 
 export const fetchTrending = () =>
@@ -237,4 +242,3 @@ export const TV_GENRES: TMDBGenre[] = [
   { id: 10765, name: "Sci-Fi & Fantasy" },
   { id: 10764, name: "Reality" },
 ];
-
