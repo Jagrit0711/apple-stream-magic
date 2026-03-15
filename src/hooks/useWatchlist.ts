@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
@@ -16,80 +16,88 @@ export interface WatchlistItem {
 
 export const useWatchlist = () => {
   const { user } = useAuth();
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchWatchlist = async () => {
-    if (!user) return;
-    try {
+  const { data: watchlist = [], isLoading: loading } = useQuery({
+    queryKey: ["watchlist", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
       const { data, error } = await supabase
-        .from("watchlists" as any)
+        .from("apple_user_content" as any)
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .eq("in_watchlist", true)
+        .order("added_to_watchlist_at", { ascending: false });
 
       if (error) throw error;
-      setWatchlist((data as any) || []);
-    } catch (err) {
-      console.error("Error fetching watchlist:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (data || []) as any as WatchlistItem[];
+    },
+    enabled: !!user,
+  });
 
-  useEffect(() => {
-    fetchWatchlist();
-  }, [user]);
+  const addMutation = useMutation({
+    mutationFn: async (item: {
+      tmdb_id: number;
+      media_type: "movie" | "tv";
+      title: string;
+      poster_path: string | null;
+      backdrop_path: string | null;
+    }) => {
+      if (!user) throw new Error("Not signed in");
+      
+      const { data: existing } = await supabase
+        .from("apple_user_content" as any)
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("tmdb_id", item.tmdb_id)
+        .eq("media_type", item.media_type)
+        .maybeSingle();
 
-  const addToWatchlist = async (item: {
-    tmdb_id: number;
-    media_type: "movie" | "tv";
-    title: string;
-    poster_path: string | null;
-    backdrop_path: string | null;
-  }) => {
-    if (!user) {
-      toast.error("Please sign in to add to watchlist");
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from("watchlists" as any)
-        .insert({
+      if (existing) {
+        const { error } = await supabase
+          .from("apple_user_content" as any)
+          .update({ in_watchlist: true, added_to_watchlist_at: new Date().toISOString() })
+          .eq("id", (existing as any).id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("apple_user_content" as any).insert({
           user_id: user.id,
           ...item,
+          in_watchlist: true,
+          added_to_watchlist_at: new Date().toISOString()
         });
-
-      if (error) throw error;
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
       toast.success("Added to watchlist");
-      fetchWatchlist();
-    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["watchlist"] });
+    },
+    onError: (err: any) => {
       if (err.code === "23505") {
         toast.error("Already in watchlist");
       } else {
         toast.error("Failed to add to watchlist");
       }
-    }
-  };
+    },
+  });
 
-  const removeFromWatchlist = async (tmdb_id: number) => {
-    if (!user) return;
-
-    try {
+  const removeMutation = useMutation({
+    mutationFn: async (tmdb_id: number) => {
+      if (!user) throw new Error("Not signed in");
       const { error } = await supabase
-        .from("watchlists" as any)
-        .delete()
+        .from("apple_user_content" as any)
+        .update({ in_watchlist: false })
         .eq("user_id", user.id)
         .eq("tmdb_id", tmdb_id);
-
       if (error) throw error;
+    },
+    onSuccess: () => {
       toast.success("Removed from watchlist");
-      fetchWatchlist();
-    } catch (err) {
-      toast.error("Failed to remove from watchlist");
-    }
-  };
+      queryClient.invalidateQueries({ queryKey: ["watchlist"] });
+    },
+    onError: () => toast.error("Failed to remove from watchlist"),
+  });
 
   const isInWatchlist = (tmdb_id: number) => {
     return watchlist.some(item => item.tmdb_id === tmdb_id);
@@ -98,9 +106,9 @@ export const useWatchlist = () => {
   return {
     watchlist,
     loading,
-    addToWatchlist,
-    removeFromWatchlist,
+    addToWatchlist: addMutation.mutate,
+    removeFromWatchlist: removeMutation.mutate,
     isInWatchlist,
-    refreshWatchlist: fetchWatchlist,
+    refreshWatchlist: () => queryClient.invalidateQueries({ queryKey: ["watchlist"] }),
   };
 };

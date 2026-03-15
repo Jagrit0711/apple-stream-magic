@@ -40,11 +40,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
-      .from("profiles")
+      .from("apple_profiles" as any)
       .select("*")
       .eq("user_id", userId)
       .single();
-    if (data) setProfile(data as AuthContextType["profile"]);
+    if (data) setProfile(data as any as AuthContextType["profile"]);
   };
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const completeOnboarding = async (genres: number[]) => {
     if (!user) return;
     await supabase
-      .from("profiles")
+      .from("apple_profiles" as any)
       .update({ onboarding_complete: true, favorite_genres: genres })
       .eq("user_id", user.id);
     setProfile(p => p ? { ...p, onboarding_complete: true, favorite_genres: genres } : p);
@@ -101,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return { error: "No user logged in" };
     // @ts-ignore
     const { error } = await supabase
-      .from("profiles")
+      .from("apple_profiles" as any)
       .update(updates)
       .eq("user_id", user.id);
     

@@ -27,12 +27,12 @@ export const useWatchHistory = () => {
     queryFn: async () => {
       if (!user) return [];
       const { data } = await supabase
-        .from("watch_history")
+        .from("apple_user_content" as any)
         .select("*")
         .eq("user_id", user.id)
         .order("last_watched_at", { ascending: false })
         .limit(20);
-      return (data || []) as WatchHistoryItem[];
+      return (data || []) as any as WatchHistoryItem[];
     },
     enabled: !!user,
   });
@@ -77,7 +77,7 @@ export const useWatchHistory = () => {
 
       // Check if record already exists to bypass finicky unique constraint errors on UPSERT
       const { data: existing } = await supabase
-        .from("watch_history")
+        .from("apple_user_content" as any)
         .select("id")
         .eq("user_id", user.id)
         .eq("tmdb_id", entry.tmdb_id)
@@ -86,13 +86,13 @@ export const useWatchHistory = () => {
 
       if (existing) {
         const { error } = await supabase
-          .from("watch_history")
+          .from("apple_user_content" as any)
           .update(payload)
-          .eq("id", existing.id);
+          .eq("id", (existing as any).id);
         if (error) console.error("Watch history update error:", error);
       } else {
         const { error } = await supabase
-          .from("watch_history")
+          .from("apple_user_content" as any)
           .insert(payload);
         if (error) console.error("Watch history insert error:", error);
       }
