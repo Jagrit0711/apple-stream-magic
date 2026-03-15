@@ -191,10 +191,10 @@ const Index = () => {
                 
                 {user && recentlyWatched.length > 0 && (
                   <motion.section 
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     viewport={{ once: true, margin: "-100px" }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
                     className="mb-8 sm:mb-10"
                   >
                      <div className="px-4 sm:px-6 md:px-8 max-w-[1600px] mx-auto mb-3 sm:mb-4">
@@ -266,10 +266,10 @@ const Index = () => {
                   return allShelves.map((shelf, idx) => (
                     <motion.div
                       key={`${shelf.type}-${shelf.title}`}
-                      initial={{ opacity: 0, y: 40 }}
-                      whileInView={{ opacity: 1, y: 0 }}
+                      initial={{ opacity: 0 }}
+                      whileInView={{ opacity: 1 }}
                       viewport={{ once: true, margin: "-50px" }}
-                      transition={{ duration: 0.7, delay: idx * 0.05 + 0.1 }}
+                      transition={{ duration: 0.5, delay: idx * 0.05 + 0.1 }}
                     >
                       {shelf.type === 'top10' ? (
                         <Top10Shelf title={shelf.title} items={shelf.items} onSelect={handleSelect} />

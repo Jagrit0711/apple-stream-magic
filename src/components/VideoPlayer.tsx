@@ -161,10 +161,10 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
       {contentId && (
         <motion.div
           className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center font-sans"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.05 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
         >
           {/* Ambient Theater Edge Glow */}
           {detail?.backdrop_path && (

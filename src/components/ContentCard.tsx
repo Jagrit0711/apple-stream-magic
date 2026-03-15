@@ -67,7 +67,7 @@ const ContentCard = ({ item, onClick, priority = false }: ContentCardProps) => {
       onMouseLeave={handleMouseLeave}
     >
       {/* Base Poster (Portrait) */}
-      <motion.div
+      <div
         className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface cursor-pointer shadow-lg shadow-black/40 group border border-white/5"
         onClick={() => onClick(item)}
       >
@@ -77,7 +77,7 @@ const ContentCard = ({ item, onClick, priority = false }: ContentCardProps) => {
           <div className="w-full h-full flex items-center justify-center text-meta text-xs">No Image</div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      </motion.div>
+      </div>
 
       {/* Expanded Hover State (Landscape) */}
       <AnimatePresence>
@@ -86,7 +86,7 @@ const ContentCard = ({ item, onClick, priority = false }: ContentCardProps) => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1.1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 450, damping: 30 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
             className="absolute z-[200] top-0 left-[-30%] bg-[#181818] rounded-xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,1)] border border-white/10"
             style={{ width: "160%", pointerEvents: "auto", transformOrigin: "center center" }}
           >

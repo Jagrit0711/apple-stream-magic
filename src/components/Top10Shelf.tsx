@@ -49,10 +49,10 @@ const Top10Card = ({ item, index, onSelect }: { item: TMDBMovie, index: number, 
       {/* Background Number */}
       <div className="absolute -left-8 sm:-left-12 bottom-0 top-0 flex items-center justify-center select-none pointer-events-none z-0">
         <motion.span 
-          initial={{ opacity: 0, x: -40, scale: 0.8 }}
-          whileInView={{ opacity: 0.6, x: 0, scale: 1 }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 0.6 }}
           viewport={{ once: true }}
-          transition={{ type: "spring", stiffness: 100, damping: 20, delay: index * 0.1 }}
+          transition={{ duration: 0.5, delay: index * 0.05 }}
           className="text-[140px] sm:text-[220px] font-black leading-none text-transparent transition-all duration-500 group-hover:opacity-100"
           style={{ 
             WebkitTextStroke: index === 0 ? '5px rgba(255,255,255,0.5)' : '4px rgba(255,255,255,0.3)',
@@ -64,7 +64,7 @@ const Top10Card = ({ item, index, onSelect }: { item: TMDBMovie, index: number, 
       </div>
       
       {/* Poster */}
-      <motion.div 
+      <div 
         className="relative z-10 w-[110px] sm:w-[150px] md:w-[180px] aspect-[2/3] rounded-lg overflow-hidden shadow-2xl cursor-pointer border border-white/5"
         onClick={() => onSelect(item)}
       >
@@ -73,7 +73,7 @@ const Top10Card = ({ item, index, onSelect }: { item: TMDBMovie, index: number, 
         ) : (
           <div className="w-full h-full bg-surface flex items-center justify-center text-meta text-xs">No Image</div>
         )}
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {isHovered && (
@@ -81,7 +81,7 @@ const Top10Card = ({ item, index, onSelect }: { item: TMDBMovie, index: number, 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1.1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 450, damping: 30 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
             className="absolute z-[200] left-[-40%] top-0 bg-[#181818] rounded-xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,1)] border border-white/10"
             style={{ width: "180%", pointerEvents: "auto", transformOrigin: "center center" }}
           >

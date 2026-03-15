@@ -85,16 +85,16 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.4 }}
+          transition={{ duration: 0.3 }}
         >
-          <motion.div className="fixed inset-0 bg-background/90 backdrop-blur-xl" onClick={onClose} />
+          <div className="fixed inset-0 bg-background/95" onClick={onClose} />
 
           <motion.div
             className="relative w-full max-w-4xl mt-8 mb-16 mx-4 z-10"
-            initial={{ y: 40, opacity: 0, scale: 0.98 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 40, opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
           >
             <button
               onClick={onClose}

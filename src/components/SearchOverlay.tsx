@@ -109,10 +109,10 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[70] bg-background/95 backdrop-blur-md overscroll-contain flex flex-col pt-[max(10px,env(safe-area-inset-top))] will-change-transform"
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
+          className="fixed inset-0 z-[70] bg-background/95 overscroll-contain flex flex-col pt-[max(10px,env(safe-area-inset-top))] will-change-transform"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
           {/* Top Bar Container */}
@@ -277,13 +277,11 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
                       {currentResults.map((item, idx) => (
                         <motion.button
                           key={item.id}
-                          initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
                           transition={{ 
-                            type: "spring", 
-                            stiffness: 400, 
-                            damping: 30,
-                            delay: Math.min(idx * 0.05, 0.5) 
+                            duration: 0.3,
+                            delay: Math.min(idx * 0.03, 0.3) 
                           }}
                           whileHover={{ scale: 1.05, y: -8 }}
                           whileTap={{ scale: 0.98 }}

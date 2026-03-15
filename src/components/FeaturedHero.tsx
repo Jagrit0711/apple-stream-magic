@@ -71,6 +71,7 @@ const FeaturedHero = ({ items, onSelect, onPlay }: FeaturedHeroProps) => {
               initial={{ scale: 1.15 }}
               animate={{ scale: 1 }}
               transition={{ duration: 15, ease: "linear" }}
+              style={{ willChange: "transform, opacity" }}
             />
           )}
         </motion.div>
