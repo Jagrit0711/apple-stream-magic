@@ -16,9 +16,9 @@ const MoviePage = () => {
   const navigate = useNavigate();
   const movieId = Number(id);
   const autoplay = searchParams.get("autoplay") === "1";
-  const [player, setPlayer] = useState(autoplay);
   const [showTrailer, setShowTrailer] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const { setPlayer } = useLayout();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
 
   const { data: detail, isLoading } = useQuery({
@@ -115,7 +115,7 @@ const MoviePage = () => {
 
           <div className="flex gap-3 flex-wrap">
             <button
-              onClick={() => setPlayer(true)}
+              onClick={() => setPlayer({ id: movieId, type: "movie" })}
               className="flex items-center gap-2 bg-accent text-white px-8 py-3.5 rounded-full font-semibold hover:bg-accent/90 transition-all accent-glow"
             >
               <Play size={18} fill="currentColor" />
@@ -236,9 +236,6 @@ const MoviePage = () => {
         )}
       </div>
 
-      {player && (
-        <VideoPlayer contentId={movieId} type="movie" onClose={() => setPlayer(false)} />
-      )}
     </div>
   );
 };

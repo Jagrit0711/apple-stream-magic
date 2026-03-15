@@ -22,11 +22,6 @@ export default defineConfig(({ mode }) => ({
         target: 'https://image.tmdb.org/t/p',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/img/, '')
-      },
-      '/api/supabase': {
-        target: 'https://qzadtgjcztwomgujqkqk.supabase.co',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/supabase/, '')
       }
     }
   },
