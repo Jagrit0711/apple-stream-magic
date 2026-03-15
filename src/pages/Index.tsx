@@ -155,6 +155,7 @@ const Index = () => {
           continueWatching={continueWatching}
           onSelect={handleSelect}
           onPlay={handlePlay}
+          onPlayDirect={handlePlayDirect}
           onSearchClick={() => {}}
           onAuthClick={() => setAuthOpen(true)}
           user={user}
