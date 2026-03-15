@@ -38,7 +38,7 @@ import { useLayout } from "@/components/MainLayout";
 const Index = () => {
   const { user, profile } = useAuth();
   const { continueWatching, recentlyWatched, history } = useWatchHistory();
-  const { recommendations } = useSmartRecommendations(history);
+  const { recommendations, personalizedShelves } = useSmartRecommendations(history);
 
   // User-Agent based device detection instead of purely CSS media queries
   const isTablet = useMemo(() => {
@@ -101,6 +101,9 @@ const Index = () => {
       { title: "Trending This Week", items: trending.slice(1, 20) },
     ];
     if (recommendations.length > 0) s.push({ title: "🤖 AI Picks For You", items: recommendations });
+    if (personalizedShelves?.length > 0) {
+      s.push(...personalizedShelves);
+    }
     
     s.push(
       { title: "Blockbuster Movies", items: movies.slice(5, 25) },
@@ -133,7 +136,7 @@ const Index = () => {
       { title: "Anime Spotlight", items: anime },
     );
     return s.filter(shelf => shelf.items && shelf.items.length > 0);
-  }, [trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, genreMovies1, genreMovies2, favoriteGenres, recommendations, actionMovies, sciFiMovies, comedyTV, familyMovies]);
+  }, [trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, genreMovies1, genreMovies2, favoriteGenres, recommendations, personalizedShelves, actionMovies, sciFiMovies, comedyTV, familyMovies]);
 
   if (!user && trendingDay.length > 0) {
     return <Landing trending={trendingDay} onAuthClick={() => setAuthOpen(true)} />;
