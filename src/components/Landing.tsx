@@ -30,23 +30,7 @@ const Landing = ({ trending, onAuthClick }: LandingProps) => {
   return (
     <div ref={containerRef} className="relative bg-black min-h-screen font-sans selection:bg-[#E11D48]/30 overflow-x-hidden">
       
-      {/* Navbar */}
-      <nav className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-6 max-w-7xl mx-auto">
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-white font-bold text-2xl tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
-            Watch
-          </span>
-          <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#E11D48]">
-            by zuup
-          </span>
-        </div>
-        <button 
-          onClick={onAuthClick}
-          className="bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-full text-sm font-semibold backdrop-blur-md transition-all border border-white/10 hover:border-white/20 hover:scale-105 active:scale-95"
-        >
-          Sign In
-        </button>
-      </nav>
+
 
       {/* Hero Section */}
       <div className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
