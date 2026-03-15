@@ -40,36 +40,40 @@ export const useWatchHistory = () => {
   // Items between 5% and 90% progress = continue watching
   // Items >= 90% = recently watched (finished)
   // Items < 5% = just started, also show in continue watching
-  const continueWatching = history.filter(h => h.progress >= 1 && h.progress < 90);
+  const continueWatching = history.filter(h => h.progress < 90);
   const recentlyWatched = history.filter(h => h.progress >= 90).slice(0, 10);
 
   const upsertMutation = useMutation({
     mutationFn: async (entry: {
       tmdb_id: number;
       media_type: string;
-      title: string;
-      poster_path: string | null;
-      backdrop_path: string | null;
+      title?: string;
+      poster_path?: string | null;
+      backdrop_path?: string | null;
       progress: number;
-      duration: number | null;
+      duration?: number | null;
       season?: number;
       episode?: number;
     }) => {
       if (!user) return;
+      
+      const payload: any = {
+        user_id: user.id,
+        tmdb_id: entry.tmdb_id,
+        media_type: entry.media_type,
+        progress: entry.progress,
+        last_watched_at: new Date().toISOString(),
+      };
+      
+      if (entry.title !== undefined) payload.title = entry.title;
+      if (entry.poster_path !== undefined) payload.poster_path = entry.poster_path;
+      if (entry.backdrop_path !== undefined) payload.backdrop_path = entry.backdrop_path;
+      if (entry.duration !== undefined) payload.duration = entry.duration;
+      if (entry.season !== undefined) payload.season = entry.season ?? null;
+      if (entry.episode !== undefined) payload.episode = entry.episode ?? null;
+
       const { error } = await supabase.from("watch_history").upsert(
-        {
-          user_id: user.id,
-          tmdb_id: entry.tmdb_id,
-          media_type: entry.media_type,
-          title: entry.title,
-          poster_path: entry.poster_path,
-          backdrop_path: entry.backdrop_path,
-          progress: entry.progress,
-          duration: entry.duration,
-          season: entry.season ?? null,
-          episode: entry.episode ?? null,
-          last_watched_at: new Date().toISOString(),
-        },
+        payload,
         { onConflict: "user_id,tmdb_id,media_type" }
       );
       if (error) console.error("Watch history upsert error:", error);
@@ -146,13 +150,11 @@ export const useWatchHistory = () => {
         upsertMutation.mutate({
           tmdb_id,
           media_type,
-          title: title || `Content ${tmdb_id}`,
-          poster_path: null,
-          backdrop_path: null,
+          ...(title && { title }),
           progress: Math.round(progressPct),
-          duration,
-          season,
-          episode,
+          ...(duration && { duration }),
+          ...(season && { season }),
+          ...(episode && { episode }),
         });
       } catch (e) {
         // Silently ignore parse errors

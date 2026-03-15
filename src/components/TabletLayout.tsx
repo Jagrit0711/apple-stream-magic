@@ -33,6 +33,7 @@ interface TabletLayoutProps {
   // Actions
   onSelect: (item: TMDBMovie) => void;
   onPlay: (item: TMDBMovie) => void;
+  onPlayDirect?: (id: number, type: "movie" | "tv", season?: number, episode?: number) => void;
   onSearchClick: () => void;
   onAuthClick: () => void;
   // Auth
@@ -455,7 +456,7 @@ const QuickStats = ({ shelves }: { shelves: { title: string; items: TMDBMovie[] 
 // ─── Main Tablet Layout ───────────────────────────────────────────────────────
 const TabletLayout = ({
   activeNav, onNavChange, trending, shelves, continueWatching = [],
-  onSelect, onPlay, onSearchClick, onAuthClick,
+  onSelect, onPlay, onPlayDirect, onSearchClick, onAuthClick,
   user, profile, onSignOut, canInstall, onInstall,
 }: TabletLayoutProps) => {
   return (
@@ -572,7 +573,7 @@ const TabletLayout = ({
 
           {/* Continue Watching */}
           {continueWatching.length > 0 && activeNav === "Home" && (
-            <TabletContinueWatching items={continueWatching} onPlay={() => {}} />
+            <TabletContinueWatching items={continueWatching} onPlay={(id, type, s, e) => onPlayDirect?.(id, type, s, e)} />
           )}
 
           {/* Content Shelves */}
