@@ -7,6 +7,8 @@ import { Play, ArrowLeft, Film, Users, Star, Clock, Plus, Check } from "lucide-r
 import { useWatchlist } from "@/hooks/useWatchlist";
 import VideoPlayer from "@/components/VideoPlayer";
 import Header from "@/components/Header";
+import ContentShelf from "@/components/ContentShelf";
+import { useLayout } from "@/components/MainLayout";
 
 const MoviePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -220,6 +222,17 @@ const MoviePage = () => {
               ))}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Suggested Content */}
+      <div className="pb-20 max-w-6xl mx-auto">
+        {(detail.recommendations?.results?.length ?? 0) > 0 && (
+          <ContentShelf 
+            title="More Like This" 
+            items={detail.recommendations!.results} 
+            onSelect={(item) => navigate(`/movie/${item.id}`)} 
+          />
         )}
       </div>
 

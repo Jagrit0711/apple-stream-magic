@@ -39,7 +39,7 @@ const MobileNavBar = ({ activeNav, onNavChange, onSearchClick, onAuthClick, isSe
       onSearchClick();
     } else {
       setSearchOpen(false);
-      navigate(path);
+      setTimeout(() => navigate(path), 50);
     }
   };
 
@@ -69,7 +69,7 @@ const MobileNavBar = ({ activeNav, onNavChange, onSearchClick, onAuthClick, isSe
         <button
           onClick={() => {
             setSearchOpen(false);
-            if (user) navigate("/profile");
+            if (user) setTimeout(() => navigate("/profile"), 50);
             else onAuthClick();
           }}
           className={`relative p-4 rounded-full touch-manipulation transition-all duration-300 flex items-center justify-center group`}
