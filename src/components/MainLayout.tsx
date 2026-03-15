@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, useRef } from "react";
 import Header from "./Header";
 import MobileNavBar from "./MobileNavBar";
 import SearchOverlay from "./SearchOverlay";
@@ -37,6 +37,45 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const [authOpen, setAuthOpen] = useState(false);
   const [player, setPlayer] = useState<{ id: number; type: "movie" | "tv"; season?: number; episode?: number } | null>(null);
   const [selectedItem, setSelectedItem] = useState<TMDBMovie | null>(null);
+
+  const openModalsCount = [searchOpen, authOpen, !!player, !!selectedItem].filter(Boolean).length;
+  const prevCount = useRef(0);
+  const isBackNavigation = useRef(false);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (openModalsCount > 0) {
+        isBackNavigation.current = true;
+        if (player) setPlayer(null);
+        else if (selectedItem) setSelectedItem(null);
+        else if (searchOpen) setSearchOpen(false);
+        else if (authOpen) setAuthOpen(false);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [player, selectedItem, searchOpen, authOpen, openModalsCount]);
+
+  useEffect(() => {
+    if (isBackNavigation.current) {
+      isBackNavigation.current = false;
+      prevCount.current = openModalsCount;
+      return;
+    }
+
+    if (openModalsCount > prevCount.current) {
+      const diff = openModalsCount - prevCount.current;
+      for (let i = 0; i < diff; i++) {
+        window.history.pushState({ modalLevel: prevCount.current + i + 1 }, "");
+      }
+    } else if (openModalsCount < prevCount.current) {
+      const diff = prevCount.current - openModalsCount;
+      if (window.history.state?.modalLevel) {
+        window.history.go(-diff);
+      }
+    }
+    prevCount.current = openModalsCount;
+  }, [openModalsCount]);
 
   useEffect(() => {
     setSearchOpen(false);
@@ -89,7 +128,10 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <SearchOverlay 
           open={searchOpen} 
           onClose={() => setSearchOpen(false)} 
-          onSelect={(item) => navigate(`/${item.media_type}/${item.id}`)} 
+          onSelect={(item) => {
+            setSearchOpen(false);
+            setTimeout(() => navigate(`/${item.media_type}/${item.id}`), 50);
+          }} 
         />
         
         <AuthModal 

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,6 +19,37 @@ import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<PageTransition><Index /></PageTransition>} />
+        <Route path="/movies" element={<PageTransition><Movies /></PageTransition>} />
+        <Route path="/tv" element={<PageTransition><TVShows /></PageTransition>} />
+        <Route path="/anime" element={<PageTransition><Anime /></PageTransition>} />
+        <Route path="/movie/:id" element={<PageTransition><MoviePage /></PageTransition>} />
+        <Route path="/tv/:id" element={<PageTransition><TVPage /></PageTransition>} />
+        <Route path="/watch-party/:roomId" element={<PageTransition><WatchParty /></PageTransition>} />
+        <Route path="/profile" element={<PageTransition><Profile /></PageTransition>} />
+        <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
+const PageTransition = ({ children }: { children: React.ReactNode }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 15 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -15 }}
+    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+    className="w-full h-full"
+  >
+    {children}
+  </motion.div>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -27,17 +59,7 @@ const App = () => (
         <PasswordGate>
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <MainLayout>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/movies" element={<Movies />} />
-                <Route path="/tv" element={<TVShows />} />
-                <Route path="/anime" element={<Anime />} />
-                <Route path="/movie/:id" element={<MoviePage />} />
-                <Route path="/tv/:id" element={<TVPage />} />
-                <Route path="/watch-party/:roomId" element={<WatchParty />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <AnimatedRoutes />
             </MainLayout>
           </BrowserRouter>
         </PasswordGate>

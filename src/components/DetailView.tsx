@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, X, ChevronDown, Film, Tv, Users, Plus, Check, Volume2, VolumeX } from "lucide-react";
+import { Play, X, ChevronDown, Film, Tv, Users, Plus, Check, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { usePersistentMute } from "@/hooks/usePersistentMute";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -151,7 +151,7 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                 <motion.button
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => { onClose(); navigate(`/${type}/${item.id}?autoplay=1${type === "tv" ? `&season=${selectedSeason}&episode=1` : ""}`); }}
+                  onClick={() => { onClose(); setTimeout(() => navigate(`/${type}/${item.id}?autoplay=1${type === "tv" ? `&season=${selectedSeason}&episode=1` : ""}`), 50); }}
                   className="flex items-center gap-2 bg-accent text-white px-10 py-4 rounded-full font-black text-xs uppercase tracking-[0.2em] hover:bg-accent/90 transition-all shadow-xl shadow-accent/20"
                 >
                   <Play size={16} fill="currentColor" />
@@ -261,7 +261,7 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                     {episodes?.map((ep) => (
                       <button
                         key={ep.id}
-                        onClick={() => { onClose(); navigate(`/tv/${item.id}?autoplay=1&season=${selectedSeason}&episode=${ep.episode_number}`); }}
+                        onClick={() => { onClose(); setTimeout(() => navigate(`/tv/${item.id}?autoplay=1&season=${selectedSeason}&episode=${ep.episode_number}`), 50); }}
                         className="w-full flex items-start gap-4 p-3 rounded-xl glass glass-hover text-left group"
                       >
                         <div className="flex-shrink-0 w-28 aspect-video rounded-lg overflow-hidden bg-muted">
@@ -278,6 +278,44 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                           <p className="text-xs text-meta line-clamp-2">{ep.overview}</p>
                           {ep.runtime && <p className="text-xs text-meta mt-1">{ep.runtime}m</p>}
                         </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {((detail?.recommendations?.results?.length ?? 0) > 0 || (detail?.similar?.results?.length ?? 0) > 0) && (
+                <div className="mt-10 border-t border-white/5 pt-8">
+                  <h2 className="text-foreground font-semibold mb-6 flex items-center gap-2 text-lg">
+                    <Sparkles size={18} className="text-accent" />
+                    You Might Also Like
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {(detail!.recommendations?.results?.length ? detail!.recommendations!.results : detail!.similar?.results || []).slice(0, 8).map(rec => (
+                      <button
+                        key={rec.id}
+                        onClick={() => {
+                          onClose();
+                          setTimeout(() => navigate(`/${rec.media_type || type}/${rec.id}`), 50);
+                        }}
+                        className="group text-left"
+                      >
+                       <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2 shadow-lg transition-transform duration-300 group-hover:scale-105 group-hover:shadow-accent/20 relative">
+                          {img(rec.poster_path) ? (
+                            <img src={img(rec.poster_path, "w500")!} alt={getTitle(rec)} className="w-full h-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-meta text-xs bg-white/5">No Image</div>
+                          )}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play size={24} className="text-white drop-shadow-md" />
+                          </div>
+                          <div className="absolute top-2 right-2 glass-strong text-[10px] font-black px-1.5 py-1 rounded-md text-white">
+                            <span className="text-accent mr-0.5">★</span>{rec.vote_average?.toFixed(1)}
+                          </div>
+                        </div>
+                        <p className="text-xs font-semibold text-foreground/80 group-hover:text-white truncate transition-colors px-1">{getTitle(rec)}</p>
+                        <p className="text-[10px] text-meta px-1">{getYear(rec)}</p>
                       </button>
                     ))}
                   </div>

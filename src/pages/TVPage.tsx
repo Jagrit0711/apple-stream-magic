@@ -7,6 +7,8 @@ import { Play, ArrowLeft, Film, Users, Star, ChevronDown, Plus, Check } from "lu
 import { useWatchlist } from "@/hooks/useWatchlist";
 import VideoPlayer from "@/components/VideoPlayer";
 import Header from "@/components/Header";
+import ContentShelf from "@/components/ContentShelf";
+import { useLayout } from "@/components/MainLayout";
 
 const TVPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -283,6 +285,17 @@ const TVPage = () => {
               ))}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Suggested Content */}
+      <div className="pb-20 max-w-6xl mx-auto">
+        {(detail.recommendations?.results?.length ?? 0) > 0 && (
+          <ContentShelf 
+            title="More Like This" 
+            items={detail.recommendations!.results} 
+            onSelect={(item) => navigate(`/tv/${item.id}`)} 
+          />
         )}
       </div>
 
