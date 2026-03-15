@@ -30,11 +30,15 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       strategies: 'injectManifest',
-      srcDir: 'public',
+      srcDir: 'src',
       filename: 'sw.js',
       registerType: 'autoUpdate',
       injectManifest: {
         injectionPoint: 'self.__WB_MANIFEST'
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module'
       },
       manifest: false // Use our existing public/manifest.json
     })
