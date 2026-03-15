@@ -72,11 +72,30 @@ export const useWatchHistory = () => {
       if (entry.season !== undefined) payload.season = entry.season ?? null;
       if (entry.episode !== undefined) payload.episode = entry.episode ?? null;
 
-      const { error } = await supabase.from("watch_history").upsert(
-        payload,
-        { onConflict: "user_id,tmdb_id,media_type" }
-      );
-      if (error) console.error("Watch history upsert error:", error);
+      // Fallback for title to satisfy NOT NULL constraint on INSERT
+      if (!payload.title) payload.title = `Content ${entry.tmdb_id}`;
+
+      // Check if record already exists to bypass finicky unique constraint errors on UPSERT
+      const { data: existing } = await supabase
+        .from("watch_history")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("tmdb_id", entry.tmdb_id)
+        .eq("media_type", entry.media_type)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("watch_history")
+          .update(payload)
+          .eq("id", existing.id);
+        if (error) console.error("Watch history update error:", error);
+      } else {
+        const { error } = await supabase
+          .from("watch_history")
+          .insert(payload);
+        if (error) console.error("Watch history insert error:", error);
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watch-history"] }),
   });
