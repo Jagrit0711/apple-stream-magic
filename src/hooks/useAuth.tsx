@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .from("apple_profiles" as any)
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
     if (data) setProfile(data as any as AuthContextType["profile"]);
   };
 

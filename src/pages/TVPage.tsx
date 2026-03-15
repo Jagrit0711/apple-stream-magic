@@ -18,11 +18,9 @@ const TVPage = () => {
   const autoplay = searchParamsUrl.get("autoplay") === "1";
   const autoSeason = Number(searchParamsUrl.get("season") || 1);
   const autoEpisode = Number(searchParamsUrl.get("episode") || 1);
-  const [player, setPlayer] = useState<{ season: number; episode: number } | null>(
-    autoplay ? { season: autoSeason, episode: autoEpisode } : null
-  );
   const [showTrailer, setShowTrailer] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState(autoSeason);
+  const { setPlayer } = useLayout();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
 
   const { data: detail, isLoading } = useQuery({
@@ -122,7 +120,7 @@ const TVPage = () => {
 
           <div className="flex gap-3 flex-wrap">
             <button
-              onClick={() => setPlayer({ season: 1, episode: 1 })}
+              onClick={() => setPlayer({ id: tvId, type: "tv", season: 1, episode: 1 })}
               className="flex items-center gap-2 bg-accent text-white px-8 py-3.5 rounded-full font-semibold hover:bg-accent/90 transition-all accent-glow"
             >
               <Play size={18} fill="currentColor" />
@@ -226,7 +224,7 @@ const TVPage = () => {
               {episodes.map(ep => (
                 <button
                   key={ep.id}
-                  onClick={() => setPlayer({ season: selectedSeason, episode: ep.episode_number })}
+                  onClick={() => setPlayer({ id: tvId, type: "tv", season: selectedSeason, episode: ep.episode_number })}
                   className="w-full flex items-start gap-4 p-4 rounded-2xl glass glass-hover text-left group"
                 >
                   <div className="flex-shrink-0 w-36 aspect-video rounded-xl overflow-hidden bg-surface">
@@ -299,9 +297,6 @@ const TVPage = () => {
         )}
       </div>
 
-      {player && (
-        <VideoPlayer contentId={tvId} type="tv" season={player.season} episode={player.episode} onClose={() => setPlayer(null)} />
-      )}
     </div>
   );
 };

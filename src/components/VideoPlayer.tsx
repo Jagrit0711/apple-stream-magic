@@ -40,16 +40,22 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
         setControlsVisible(false);
-      }, 3000);
+      }, 5000);
     };
 
     window.addEventListener("mousemove", showControls);
     window.addEventListener("touchstart", showControls);
+    window.addEventListener("mousedown", showControls);
+    window.addEventListener("click", showControls);
+    window.addEventListener("keydown", showControls);
     showControls(); // Initial trigger
 
     return () => {
       window.removeEventListener("mousemove", showControls);
       window.removeEventListener("touchstart", showControls);
+      window.removeEventListener("mousedown", showControls);
+      window.removeEventListener("click", showControls);
+      window.removeEventListener("keydown", showControls);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
@@ -205,10 +211,11 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
                 >
                   <button
                     onClick={handleClose}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-black/50 backdrop-blur-xl text-white hover:bg-white/20 hover:scale-105 active:scale-95 transition-all outline-none border border-white/10"
+                    className="flex items-center gap-2 px-5 py-3 rounded-full bg-black/60 backdrop-blur-2xl text-white hover:bg-white/20 hover:scale-105 active:scale-95 transition-all outline-none border border-white/20 shadow-2xl pointer-events-auto group"
+                    style={{ WebkitBackdropFilter: "blur(40px)" }}
                   >
-                    <ArrowLeft size={18} />
-                    <span className="text-sm font-semibold tracking-wide">Back</span>
+                    <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                    <span className="text-sm font-bold tracking-tight">Close Player</span>
                   </button>
                 </div>
               </motion.div>
