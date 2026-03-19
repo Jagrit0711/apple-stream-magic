@@ -37,8 +37,7 @@ export default defineConfig(({ mode }) => ({
         injectionPoint: 'self.__WB_MANIFEST'
       },
       devOptions: {
-        enabled: true,
-        type: 'module'
+        enabled: false,
       },
       manifest: false // Use our existing public/manifest.json
     })

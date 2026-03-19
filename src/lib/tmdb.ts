@@ -1,6 +1,8 @@
-const TMDB_BASE = "https://api.themoviedb.org/3";
+// In dev: falls back to the Vite proxy (/api/tmdb → api.themoviedb.org).
+// In production: set VITE_TMDB_PROXY to your Cloudflare Worker URL.
+const TMDB_BASE = (import.meta.env.VITE_TMDB_PROXY ?? "/api/tmdb") as string;
+const IMG_BASE  = (import.meta.env.VITE_IMG_PROXY  ?? "/api/img")  as string;
 const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYWRhYzNmMzBhMmI3MDRiMDFmZDk3NzEwOWUxY2I5OSIsIm5iZiI6MTcyODQ2ODkwMC4zNDIwMDAyLCJzdWIiOiI2NzA2NTdhNGRjNTRmMjlkMGVhYjViYTciLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.yIMztIJtw7BbDEw0UhbWzA4Hh7ovRhzTstcvVcMatyE";
-const IMG_BASE = "https://image.tmdb.org/t/p";
 
 export const img = (path: string | null, size: "w500" | "w780" | "w1280" | "original" = "w500") =>
   path ? `${IMG_BASE}/${size}${path}` : null;

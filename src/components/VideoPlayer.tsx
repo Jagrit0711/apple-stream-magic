@@ -156,11 +156,11 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
 
   if (!contentId) return null;
 
-  let src = `https://player.videasy.net/${type}/${contentId}`;
+  let src = `https://www.vidking.net/embed/${type}/${contentId}`;
   if (type === "tv" && playingSeason && playingEpisode) {
     src += `/${playingSeason}/${playingEpisode}`;
   }
-  src += "?color=E11D48&nextEpisode=true&autoplayNextEpisode=false&episodeSelector=true&overlay=true&autoplay=1";
+  src += "?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true";
 
   return (
     <AnimatePresence>
