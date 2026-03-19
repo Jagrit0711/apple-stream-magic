@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { Search, User, LogOut, Download } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, User, LogOut, Download, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { useTVNav } from "@/hooks/useTVNav";
 
 interface HeaderProps {
   onSearch: (query: string) => void;
@@ -13,11 +14,13 @@ interface HeaderProps {
   onSearchClick?: () => void;
 }
 
+// Header nav items — indices MUST match HEADER_PATHS in MainLayout
 const NAV_ITEMS = [
-  { label: "Home", path: "/" },
-  { label: "Movies", path: "/movies" },
-  { label: "TV Shows", path: "/tv" },
+  { label: "Home",      path: "/" },
+  { label: "Movies",    path: "/movies" },
+  { label: "TV Shows",  path: "/tv" },
   { label: "Watchlist", path: "/profile" },
+  // index 4 = Search (handled separately)
 ];
 
 const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }: HeaderProps) => {
@@ -25,8 +28,14 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
   const { canInstall, promptInstall } = useInstallPrompt();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // TV nav — reads from global provider (no local arrow key handling here)
+  const { isTV, zone, headerCol, getHeaderFocused } = useTVNav();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
@@ -34,64 +43,146 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
+  // Auto-focus search input when expanded
+  useEffect(() => {
+    if (searchExpanded) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    } else {
+      setSearchQuery("");
+    }
+  }, [searchExpanded]);
+
+  // When TV nav selects search (index 4), expand the search bar
+  useEffect(() => {
+    if (isTV && zone === "header" && headerCol === 4 && !searchExpanded) {
+      // TV cursor is on Search icon — auto-expand on Enter (handled by TVNavProvider → onHeaderSelect → setSearchOpen)
+    }
+  }, [isTV, zone, headerCol, searchExpanded]);
+
+  const tvNavHighlight = (idx: number) =>
+    isTV && zone === "header" && headerCol === idx;
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
-          ? "bg-background/95 border-b border-[hsla(0,0%,100%,0.04)]"
-          : "bg-gradient-to-b from-background via-background/60 to-transparent"
+          ? "bg-background/95 backdrop-blur-2xl border-b border-white/[0.04]"
+          : "bg-gradient-to-b from-background/80 via-background/30 to-transparent"
       }`}
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
     >
-      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-3 sm:py-4 max-w-[1600px] mx-auto">
-        <div className="flex items-center gap-4 sm:gap-8">
-          <div className="flex flex-col gap-0 cursor-pointer" onClick={() => navigate("/")}>
-            <span className="font-bold text-2xl sm:text-3xl tracking-tighter text-foreground leading-none">Watch</span>
-            <span className="text-[10px] font-black text-meta tracking-[0.3em] uppercase opacity-60 mt-0.5 ml-4">by zuup</span>
-          </div>
+      <div className="relative flex items-center px-4 sm:px-6 md:px-8 py-3 sm:py-4 max-w-[1600px] mx-auto">
 
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV_ITEMS.map((item) => (
+        {/* ── Logo ─────────────────────────────────────────── */}
+        <div
+          className="flex flex-col gap-0 cursor-pointer shrink-0 z-10"
+          onClick={() => navigate("/")}
+        >
+          <span className="font-bold text-2xl sm:text-3xl tracking-tighter text-foreground leading-none">Watch</span>
+          <span className="text-[10px] font-black text-meta tracking-[0.3em] uppercase opacity-60 mt-0.5 ml-4">by zuup</span>
+        </div>
+
+        {/* ── Center Nav ───────────────────────────────────── */}
+        <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-1">
+          {NAV_ITEMS.map((item, i) => {
+            const isActive = location.pathname === item.path;
+            const isTVHighlighted = tvNavHighlight(i);
+            return (
               <motion.button
                 key={item.label}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate(item.path)}
-                className={`relative px-4 py-2 rounded-full text-[13px] font-bold tracking-wide transition-all duration-300 ${
-                  location.pathname === item.path
-                    ? "text-foreground bg-white/10 shadow-lg shadow-white/5"
-                    : "text-meta hover:text-foreground"
-                }`}
+                id={`nav-${item.label.toLowerCase().replace(" ", "-")}`}
+                className={`
+                  relative px-4 py-2 rounded-full text-[13px] font-bold tracking-wide
+                  transition-all duration-200 outline-none
+                  ${isTVHighlighted
+                    ? "text-accent ring-2 ring-accent ring-offset-1 ring-offset-background scale-110"
+                    : isActive
+                    ? "text-foreground"
+                    : "text-meta hover:text-foreground"}
+                `}
               >
                 {item.label}
-                {location.pathname === item.path && (
+                {(isActive || isTVHighlighted) && (
                   <motion.div
-                    layoutId="header-nav"
-                    className="absolute inset-0 bg-white/5 rounded-full -z-10"
+                    layoutId="header-nav-pill"
+                    className={`absolute inset-0 rounded-full -z-10 ${
+                      isTVHighlighted ? "bg-accent/20" : "bg-white/10 shadow-lg shadow-white/5"
+                    }`}
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   />
                 )}
               </motion.button>
-            ))}
-          </nav>
-        </div>
+            );
+          })}
+        </nav>
 
-        <div className="flex items-center gap-1 sm:gap-2">
-          <motion.button
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={onSearchClick}
-            className="p-3 rounded-full text-meta hover:text-foreground hover:bg-white/5 transition-all duration-300 touch-manipulation hidden md:flex"
-          >
-            <Search size={20} />
-          </motion.button>
+        {/* ── Right: Search bar + Actions ─────────────────── */}
+        <div className="ml-auto flex items-center gap-2">
+
+          {/* Search — expands into a bar, highlighted on TV when headerCol === 4 */}
+          <div className="hidden md:flex items-center">
+            <AnimatePresence mode="wait">
+              {searchExpanded ? (
+                <motion.div
+                  key="search-bar"
+                  initial={{ width: 36, opacity: 0.5 }}
+                  animate={{ width: 240, opacity: 1 }}
+                  exit={{ width: 36, opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-4 h-10 overflow-hidden"
+                >
+                  <Search size={16} className="text-meta shrink-0" />
+                  <input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChange={e => { setSearchQuery(e.target.value); onSearch(e.target.value); }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && searchQuery.trim()) onSearchClick?.();
+                      if (e.key === "Escape") setSearchExpanded(false);
+                    }}
+                    placeholder="Search movies & shows..."
+                    className="bg-transparent text-foreground text-sm placeholder:text-meta/60 outline-none w-full"
+                    autoComplete="off"
+                    spellCheck="false"
+                  />
+                  <button
+                    onClick={() => setSearchExpanded(false)}
+                    className="text-meta hover:text-foreground transition-colors shrink-0"
+                  >
+                    <X size={14} />
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.button
+                  key="search-icon"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => { onSearchClick?.(); setSearchExpanded(true); }}
+                  id="header-search-btn"
+                  className={`
+                    p-2.5 rounded-full transition-all duration-200 outline-none
+                    ${tvNavHighlight(4)
+                      ? "text-accent ring-2 ring-accent ring-offset-1 ring-offset-background bg-accent/10 scale-110"
+                      : "text-meta hover:text-foreground hover:bg-white/5"}
+                  `}
+                  aria-label="Search"
+                >
+                  <Search size={19} />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
 
           {canInstall && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={promptInstall}
-              className="hidden md:flex items-center gap-1.5 px-4 py-2.5 rounded-full text-meta hover:text-foreground hover:bg-white/5 transition-all duration-300 touch-manipulation"
+              className="hidden md:flex items-center gap-1.5 px-4 py-2.5 rounded-full text-meta hover:text-foreground hover:bg-white/5 transition-all duration-300 outline-none"
               title="Install app"
             >
               <Download size={18} />
@@ -99,15 +190,16 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
             </motion.button>
           )}
 
+          {/* User avatar */}
           <div className="relative hidden md:block">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => user ? setMenuOpen(!menuOpen) : onAuthClick()}
-              className={`flex items-center gap-2 transition-all duration-300 touch-manipulation ${
-                user 
-                  ? "p-1 rounded-full bg-white/5 hover:bg-white/10" 
-                  : "px-5 py-2.5 rounded-full bg-accent text-white shadow-xl shadow-accent/20 hover:scale-105"
+              className={`flex items-center gap-2 transition-all duration-300 touch-manipulation outline-none rounded-full ${
+                user
+                  ? "p-1 bg-white/5 hover:bg-white/10"
+                  : "px-5 py-2.5 bg-accent text-white shadow-xl shadow-accent/20 hover:scale-105"
               }`}
             >
               {user ? (
@@ -121,6 +213,7 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
                 </>
               )}
             </motion.button>
+
             <AnimatePresence>
               {user && menuOpen && (
                 <motion.div
@@ -152,6 +245,15 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
           </div>
         </div>
       </div>
+
+      {/* TV mode indicator — shows which zone/col is focused */}
+      {isTV && zone === "header" && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent"
+        />
+      )}
     </header>
   );
 };

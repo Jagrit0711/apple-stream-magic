@@ -27,11 +27,15 @@ interface DetailViewProps {
 const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
   const [selectedSeason, setSelectedSeason] = useState(1);
   const [showTrailer, setShowTrailer] = useState(false);
+  const [tvBtnIdx, setTvBtnIdx] = useState(0); // TV remote: which action button is focused
   const navigate = useNavigate();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const { isMuted, toggleMute } = usePersistentMute();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const type = item ? getContentType(item) : "movie";
+
+  // Detect TV mode
+  const isTV = (() => { try { return localStorage.getItem("tv-mode") === "1"; } catch { return false; } })();
 
   const { data: detail } = useQuery({
     queryKey: ["detail", item?.id, type],
@@ -51,12 +55,32 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
     enabled: !!item && type === "tv",
   });
 
-  useEffect(() => { setSelectedSeason(1); setShowTrailer(false); }, [item?.id]);
+  const mainTrailer = trailers[0];
+
+  useEffect(() => { setSelectedSeason(1); setShowTrailer(false); setTvBtnIdx(0); }, [item?.id]);
   useEffect(() => {
     if (item) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
     return () => { document.body.style.overflow = ""; };
   }, [item]);
+
+  // TV remote nav — capture phase so it beats TVNavProvider
+  useEffect(() => {
+    if (!item) return;
+    const BTN_COUNT = mainTrailer ? 4 : 3; // Play, Trailer(opt), WatchParty, Watchlist
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") { e.stopPropagation(); e.preventDefault(); setTvBtnIdx(i => Math.min(i + 1, BTN_COUNT - 1)); }
+      if (e.key === "ArrowLeft")  { e.stopPropagation(); e.preventDefault(); setTvBtnIdx(i => Math.max(i - 1, 0)); }
+      if (e.key === "Escape" || e.key === "Backspace") { e.stopPropagation(); onClose(); }
+      if (e.key === "Enter" || e.key === " ") {
+        e.stopPropagation(); e.preventDefault();
+        // Fire the button at current index
+        (document.querySelector(`[data-detail-btn="${tvBtnIdx}"]`) as HTMLElement)?.click();
+      }
+    };
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
+  }, [item, tvBtnIdx, onClose, mainTrailer]);
 
   useEffect(() => {
     if (iframeRef.current?.contentWindow) {
@@ -75,7 +99,9 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
     navigate(`/watch-party/${roomId}?id=${item.id}&type=${type}`);
   };
 
-  const mainTrailer = trailers[0];
+  // Helper: class for TV-focused button
+  const btnCls = (idx: number, base: string) =>
+    `${base} ${isTV && tvBtnIdx === idx ? "ring-2 ring-accent scale-105 shadow-[0_0_20px_hsla(346,90%,56%,0.5)]" : ""}`;
 
   return (
     <AnimatePresence>
@@ -149,10 +175,19 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
               {/* Action Buttons always visible */}
               <div className="flex items-center gap-3 mb-8 flex-wrap">
                 <motion.button
+                  data-detail-btn="0"
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => { onClose(); setTimeout(() => navigate(`/${type}/${item.id}?autoplay=1${type === "tv" ? `&season=${selectedSeason}&episode=1` : ""}`), 50); }}
-                  className="flex items-center gap-2 bg-accent text-white px-10 py-4 rounded-full font-black text-xs uppercase tracking-[0.2em] hover:bg-accent/90 transition-all shadow-xl shadow-accent/20"
+                  onClick={() => {
+                    onClose();
+                    onPlay(
+                      item.id,
+                      type,
+                      type === "tv" ? selectedSeason : undefined,
+                      type === "tv" ? 1 : undefined
+                    );
+                  }}
+                  className={btnCls(0, "flex items-center gap-2 bg-accent text-white px-10 py-4 rounded-full font-black text-xs uppercase tracking-[0.2em] hover:bg-accent/90 transition-all shadow-xl shadow-accent/20 outline-none")}
                 >
                   <Play size={16} fill="currentColor" />
                   {type === "movie" ? "Play Movie" : "Play S1 E1"}
@@ -160,10 +195,11 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
 
                 {!showTrailer && mainTrailer && (
                   <motion.button
+                    data-detail-btn="1"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowTrailer(true)}
-                    className="flex items-center gap-2 bg-white/5 border border-white/5 text-white px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all shadow-xl"
+                    className={btnCls(1, "flex items-center gap-2 bg-white/5 border border-white/5 text-white px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all shadow-xl outline-none")}
                   >
                     <Film size={16} />
                     Watch Trailer
@@ -171,16 +207,18 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                 )}
 
                   <motion.button
+                    data-detail-btn="2"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleWatchParty}
-                    className="flex items-center gap-2 bg-white/5 border border-white/5 text-white px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all shadow-xl"
+                    className={btnCls(2, "flex items-center gap-2 bg-white/5 border border-white/5 text-white px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all shadow-xl outline-none")}
                   >
                     <Users size={16} />
                     Watch Party
                   </motion.button>
 
                 <motion.button
+                  data-detail-btn="3"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
@@ -196,11 +234,11 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                       });
                     }
                   }}
-                  className={`flex items-center gap-2 px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all border shadow-xl ${
-                    isInWatchlist(item.id) 
-                      ? "bg-green-500/10 border-green-500/30 text-green-500" 
+                  className={btnCls(3, `flex items-center gap-2 px-6 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all border shadow-xl outline-none ${
+                    isInWatchlist(item.id)
+                      ? "bg-green-500/10 border-green-500/30 text-green-500"
                       : "bg-white/5 border-white/5 text-white hover:bg-white/10"
-                  }`}
+                  }`)}
                 >
                   {isInWatchlist(item.id) ? <Check size={16} /> : <Plus size={16} />}
                   {isInWatchlist(item.id) ? "In Watchlist" : "Watchlist"}

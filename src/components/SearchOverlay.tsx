@@ -49,6 +49,7 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [focusedIdx, setFocusedIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Debounce search
@@ -78,6 +79,7 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
     if (open) {
       setQuery("");
       setSelectedGenre(null);
+      setFocusedIdx(-1);
       setTimeout(() => inputRef.current?.focus(), 100);
       document.body.style.overflow = "hidden";
     } else {
@@ -85,14 +87,6 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
     }
     return () => { document.body.style.overflow = ""; };
   }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
 
   const handleSelect = (item: TMDBMovie) => {
     onSelect(item);
@@ -102,8 +96,30 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
   const isSearching = debouncedQuery.length > 2;
   const isFiltering = !!selectedGenre && !isSearching;
   const showSuggestions = !isSearching && !isFiltering;
-
   const currentResults = isSearching ? results : (isFiltering ? genreResults : []);
+
+  // Close on Escape + arrow key result navigation
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      const results = currentResults ?? [];
+      if (e.key === "ArrowDown") {
+        e.stopPropagation(); e.preventDefault();
+        setFocusedIdx(i => Math.min(i + 1, results.length - 1));
+      }
+      if (e.key === "ArrowUp") {
+        e.stopPropagation(); e.preventDefault();
+        setFocusedIdx(i => { if (i <= 0) { inputRef.current?.focus(); return -1; } return i - 1; });
+      }
+      if (e.key === "Enter" && focusedIdx >= 0 && results[focusedIdx]) {
+        e.stopPropagation();
+        handleSelect(results[focusedIdx]);
+      }
+    };
+    window.addEventListener("keydown", handler, { capture: true }); // capture=true beats TVNavProvider
+    return () => window.removeEventListener("keydown", handler, { capture: true });
+  }, [open, onClose, focusedIdx, currentResults]);
 
   return (
     <AnimatePresence>
@@ -279,14 +295,13 @@ const SearchOverlay = ({ open, onClose, onSelect }: SearchOverlayProps) => {
                           key={item.id}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          transition={{ 
-                            duration: 0.3,
-                            delay: Math.min(idx * 0.03, 0.3) 
-                          }}
+                          transition={{ duration: 0.3, delay: Math.min(idx * 0.03, 0.3) }}
                           whileHover={{ scale: 1.05, y: -8 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => handleSelect(item)}
-                          className="group relative flex flex-col focus:outline-none z-10 hover:z-20"
+                          className={`group relative flex flex-col focus:outline-none z-10 hover:z-20 ${
+                            idx === focusedIdx ? "ring-2 ring-accent rounded-3xl scale-105 ring-offset-2 ring-offset-background" : ""
+                          }`}
                         >
                           <div className="relative aspect-[2/3] rounded-3xl overflow-hidden bg-surface mb-4 shadow-2xl transition-all duration-500 group-hover:shadow-accent/20">
                             {img(item.poster_path) ? (
