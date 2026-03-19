@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -39,6 +39,25 @@ const Index = () => {
   const { user, profile } = useAuth();
   const { continueWatching, recentlyWatched, history } = useWatchHistory();
   const { recommendations, personalizedShelves } = useSmartRecommendations(history);
+
+  // TV mode detection — persisted in localStorage so no flash on reload
+  const [isTVMode, setIsTVMode] = useState(() => {
+    try { if (localStorage.getItem("tv-mode") === "1") return true; } catch {}
+    return (
+      navigator.userAgent.toLowerCase().includes("tv") ||
+      navigator.userAgent.toLowerCase().includes("smart-tv")
+    );
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) {
+        setIsTVMode(true);
+        try { localStorage.setItem("tv-mode", "1"); } catch {}
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // User-Agent based device detection instead of purely CSS media queries
   const isTablet = useMemo(() => {
@@ -273,9 +292,9 @@ const Index = () => {
                       transition={{ duration: 0.5, delay: idx * 0.05 + 0.1 }}
                     >
                       {shelf.type === 'top10' ? (
-                        <Top10Shelf title={shelf.title} items={shelf.items} onSelect={handleSelect} />
+                        <Top10Shelf title={shelf.title} items={shelf.items} onSelect={handleSelect} rowIndex={idx} />
                       ) : (
-                        <ContentShelf title={shelf.title} items={shelf.items} onSelect={handleSelect} />
+                        <ContentShelf title={shelf.title} items={shelf.items} onSelect={handleSelect} rowIndex={idx} />
                       )}
                     </motion.div>
                   ));

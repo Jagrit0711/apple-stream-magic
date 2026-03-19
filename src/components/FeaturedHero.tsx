@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import { TMDBMovie, img, getTitle, getYear } from "@/lib/tmdb";
+import { useTVNav } from "@/hooks/useTVNav";
+
+const HERO_ROW = -2; // Below header, above all content rows
 
 interface FeaturedHeroProps {
   items: TMDBMovie[];
@@ -13,24 +16,44 @@ const FeaturedHero = ({ items, onSelect, onPlay }: FeaturedHeroProps) => {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const touchStartX = useRef(0);
+  const { isTV, zone, focusedRow, focusedCol, registerRow, unregisterRow, registerRowAction, unregisterRowAction } = useTVNav();
 
+  const isHeroFocused = isTV && zone === "content" && focusedRow === HERO_ROW;
   const featured = items.slice(0, 8);
   const item = featured[index] || null;
 
-  // Auto-rotate every 8 seconds
+  // Pause auto-rotate when TV cursor is on hero
   useEffect(() => {
-    if (featured.length <= 1) return;
+    if (featured.length <= 1 || isHeroFocused) return;
     const timer = setInterval(() => {
       setDirection(1);
       setIndex(prev => (prev + 1) % featured.length);
     }, 8000);
     return () => clearInterval(timer);
-  }, [featured.length]);
+  }, [featured.length, isHeroFocused]);
 
   const goTo = useCallback((dir: -1 | 1) => {
     setDirection(dir);
     setIndex(prev => (prev + dir + featured.length) % featured.length);
   }, [featured.length]);
+
+  // Register hero row with TV nav (2 buttons: Play=0, More Info=1)
+  useEffect(() => {
+    if (!isTV) return;
+    registerRow(HERO_ROW, 2);
+    return () => unregisterRow(HERO_ROW);
+  }, [isTV, registerRow, unregisterRow]);
+
+  // Register custom Enter action for hero row
+  useEffect(() => {
+    if (!isTV || !item) return;
+    const captured = item;
+    registerRowAction(HERO_ROW, (col) => {
+      if (col === 0) onPlay(captured);
+      else onSelect(captured);
+    });
+    return () => unregisterRowAction(HERO_ROW);
+  }, [isTV, item, onPlay, onSelect, registerRowAction, unregisterRowAction]);
 
   // Touch swipe support
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -126,7 +149,11 @@ const FeaturedHero = ({ items, onSelect, onPlay }: FeaturedHeroProps) => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => onPlay(item)}
-                className="flex items-center gap-2 bg-accent text-accent-foreground px-5 sm:px-7 py-2.5 sm:py-3 rounded-full font-semibold text-xs sm:text-sm hover:translate-y-[-2px] hover:shadow-[0_8px_25px_rgba(225,29,72,0.4)] transition-all duration-300 accent-glow active:scale-95 touch-manipulation"
+                className={`flex items-center gap-2 px-5 sm:px-7 py-2.5 sm:py-3 rounded-full font-semibold text-xs sm:text-sm transition-all duration-300 active:scale-95 touch-manipulation outline-none ${
+                  isHeroFocused && focusedCol === 0
+                    ? "bg-accent text-accent-foreground scale-110 shadow-[0_0_30px_hsla(346,90%,56%,0.7)] ring-2 ring-white/40"
+                    : "bg-accent text-accent-foreground hover:translate-y-[-2px] hover:shadow-[0_8px_25px_rgba(225,29,72,0.4)] accent-glow"
+                }`}
               >
                 <Play size={14} fill="currentColor" />
                 Play Now
@@ -135,7 +162,11 @@ const FeaturedHero = ({ items, onSelect, onPlay }: FeaturedHeroProps) => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => onSelect(item)}
-                className="flex items-center gap-2 glass glass-hover px-5 sm:px-7 py-2.5 sm:py-3 rounded-full font-semibold text-xs sm:text-sm text-foreground hover:translate-y-[-2px] active:scale-95 touch-manipulation"
+                className={`flex items-center gap-2 px-5 sm:px-7 py-2.5 sm:py-3 rounded-full font-semibold text-xs sm:text-sm text-foreground active:scale-95 touch-manipulation outline-none transition-all duration-300 ${
+                  isHeroFocused && focusedCol === 1
+                    ? "bg-white/30 border border-white/60 scale-110 ring-2 ring-white/40 shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                    : "glass glass-hover hover:translate-y-[-2px]"
+                }`}
               >
                 <Info size={14} />
                 More Info

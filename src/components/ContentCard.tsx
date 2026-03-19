@@ -11,14 +11,17 @@ interface ContentCardProps {
   item: TMDBMovie;
   onClick: (item: TMDBMovie) => void;
   priority?: boolean;
+  isTVFocused?: boolean;
 }
 
-const ContentCard = ({ item, onClick, priority = false }: ContentCardProps) => {
+const ContentCard = ({ item, onClick, priority = false, isTVFocused = false }: ContentCardProps) => {
   const poster = img(item.poster_path, "w500");
   const backdrop = img(item.backdrop_path, "w780");
   const navigate = useNavigate();
   const type = getContentType(item);
+  // On TV: treat isTVFocused as hover (shows expanded card + trailer)
   const [isHovered, setIsHovered] = useState(false);
+  const effectiveHover = isHovered || isTVFocused;
   const { isMuted, toggleMute } = usePersistentMute();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const hoverTimer = useRef<NodeJS.Timeout | null>(null);
@@ -27,7 +30,7 @@ const ContentCard = ({ item, onClick, priority = false }: ContentCardProps) => {
   const { data: trailers } = useQuery({
     queryKey: ["trailers", item.id, type],
     queryFn: () => fetchTrailers(item.id, type),
-    enabled: isHovered,
+    enabled: effectiveHover,
     staleTime: 1000 * 60 * 60,
   });
 
@@ -61,14 +64,20 @@ const ContentCard = ({ item, onClick, priority = false }: ContentCardProps) => {
   const trailer = trailers?.[0];
 
   return (
-    <div 
-      className="relative flex-shrink-0 w-[130px] sm:w-[160px] md:w-[200px]"
+    <div
+      className={`relative flex-shrink-0 w-[130px] sm:w-[160px] md:w-[200px] transition-transform duration-200 ${
+        isTVFocused ? "scale-105 z-10" : ""
+      }`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Base Poster (Portrait) */}
+      {/* Base Poster with TV focus ring */}
       <div
-        className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface cursor-pointer shadow-lg shadow-black/40 group border border-white/5"
+        className={`relative aspect-[2/3] rounded-xl overflow-hidden bg-surface cursor-pointer shadow-lg shadow-black/40 group border transition-all duration-200 ${
+          isTVFocused
+            ? "border-accent ring-2 ring-accent ring-offset-2 ring-offset-background shadow-[0_0_30px_hsla(346,90%,56%,0.6)]"
+            : "border-white/5"
+        }`}
         onClick={() => onClick(item)}
       >
         {poster ? (
@@ -77,11 +86,19 @@ const ContentCard = ({ item, onClick, priority = false }: ContentCardProps) => {
           <div className="w-full h-full flex items-center justify-center text-meta text-xs">No Image</div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        {/* TV focus overlay — play icon in centre */}
+        {isTVFocused && (
+          <div className="absolute inset-0 bg-accent/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-accent/90 flex items-center justify-center shadow-2xl accent-glow">
+              <Play size={20} fill="white" className="text-white ml-0.5" />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Expanded Hover State (Landscape) */}
+      {/* Expanded Hover/Focus State (Landscape) */}
       <AnimatePresence>
-        {isHovered && (
+        {effectiveHover && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1.1 }}

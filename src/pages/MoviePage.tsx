@@ -21,6 +21,28 @@ const MoviePage = () => {
   const { setPlayer } = useLayout();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
 
+  const isTV = (() => { try { return localStorage.getItem("tv-mode") === "1"; } catch { return false; } })();
+  const [tvBtnIdx, setTvBtnIdx] = useState(0);
+  const BTN_COUNT = 4;
+
+  useEffect(() => {
+    if (!isTV) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") { e.stopPropagation(); e.preventDefault(); setTvBtnIdx(i => Math.min(i + 1, BTN_COUNT - 1)); }
+      if (e.key === "ArrowLeft")  { e.stopPropagation(); e.preventDefault(); setTvBtnIdx(i => Math.max(i - 1, 0)); }
+      if (e.key === "Escape" || e.key === "Backspace") { e.stopPropagation(); navigate(-1); }
+      if (e.key === "Enter" || e.key === " ") {
+        e.stopPropagation(); e.preventDefault();
+        (document.querySelector(`[data-tv-btn="${tvBtnIdx}"]`) as HTMLElement)?.click();
+      }
+    };
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
+  }, [isTV, tvBtnIdx, navigate]);
+
+  const btnCls = (idx: number, base: string) =>
+    `${base} ${isTV && tvBtnIdx === idx ? "ring-2 ring-accent scale-105 shadow-[0_0_20px_hsla(346,90%,56%,0.5)]" : ""}`;
+
   const { data: detail, isLoading } = useQuery({
     queryKey: ["detail", movieId, "movie"],
     queryFn: () => fetchMovieDetail(movieId),
@@ -75,7 +97,8 @@ const MoviePage = () => {
           </div>
         )}
 
-        <div className="relative z-10 px-6 sm:px-12 pb-12 max-w-3xl">
+        <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 sm:px-12 pb-12">
+          <div className="max-w-2xl">
           <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-meta hover:text-foreground transition-colors text-sm mb-6 group"
@@ -115,8 +138,9 @@ const MoviePage = () => {
 
           <div className="flex gap-3 flex-wrap">
             <button
+              data-tv-btn="0"
               onClick={() => setPlayer({ id: movieId, type: "movie" })}
-              className="flex items-center gap-2 bg-accent text-white px-8 py-3.5 rounded-full font-semibold hover:bg-accent/90 transition-all accent-glow"
+              className={btnCls(0, "flex items-center gap-2 bg-accent text-white px-8 py-3.5 rounded-full font-semibold hover:bg-accent/90 transition-all accent-glow outline-none")}
             >
               <Play size={18} fill="currentColor" />
               Play Now
@@ -124,8 +148,9 @@ const MoviePage = () => {
 
             {mainTrailer && !showTrailer && (
               <button
+                data-tv-btn="1"
                 onClick={() => setShowTrailer(true)}
-                className="flex items-center gap-2 glass text-foreground px-6 py-3.5 rounded-full font-semibold hover:bg-white/10 transition-all"
+                className={btnCls(1, "flex items-center gap-2 glass text-foreground px-6 py-3.5 rounded-full font-semibold hover:bg-white/10 transition-all outline-none")}
               >
                 <Film size={16} />
                 Watch Trailer
@@ -133,17 +158,19 @@ const MoviePage = () => {
             )}
 
             <button
+              data-tv-btn="2"
               onClick={() => {
                 const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
                 navigate(`/watch-party/${roomId}?id=${movieId}&type=movie`);
               }}
-              className="flex items-center gap-2 glass text-foreground px-6 py-3.5 rounded-full font-semibold hover:bg-white/10 transition-all"
+              className={btnCls(2, "flex items-center gap-2 glass text-foreground px-6 py-3.5 rounded-full font-semibold hover:bg-white/10 transition-all outline-none")}
             >
               <Users size={16} />
               Watch Party
             </button>
 
             <button
+              data-tv-btn="3"
               onClick={() => {
                 if (isInWatchlist(movieId)) {
                   removeFromWatchlist(movieId);
@@ -157,15 +184,16 @@ const MoviePage = () => {
                   });
                 }
               }}
-              className={`flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold transition-all border ${
-                isInWatchlist(movieId) 
-                  ? "bg-green-500/10 border-green-500/30 text-green-500" 
+              className={btnCls(3, `flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold transition-all border outline-none ${
+                isInWatchlist(movieId)
+                  ? "bg-green-500/10 border-green-500/30 text-green-500"
                   : "glass text-foreground hover:bg-white/10"
-              }`}
+              }`)}
             >
               {isInWatchlist(movieId) ? <Check size={16} /> : <Plus size={16} />}
               {isInWatchlist(movieId) ? "In Watchlist" : "Add to Watchlist"}
             </button>
+          </div>
           </div>
         </div>
       </div>
@@ -196,7 +224,7 @@ const MoviePage = () => {
       )}
 
       {/* Cast & Info */}
-      <div className="px-6 sm:px-12 pb-20 max-w-4xl">
+      <div className="px-6 sm:px-12 pb-20 max-w-[1400px] mx-auto">
         {detail.credits?.cast && detail.credits.cast.length > 0 && (
           <div className="mb-8">
             <h2 className="text-foreground font-semibold mb-4 text-lg">Cast</h2>
