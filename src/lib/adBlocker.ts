@@ -6,8 +6,8 @@
 
 const ALLOWED_DOMAINS = [
   "zuup.dev",
-  "videasy.net",
-  "player.videasy.net",
+  "vidking.net",
+  "www.vidking.net",
   "themoviedb.org",
   "api.themoviedb.org",
   "image.tmdb.org",

@@ -8,6 +8,14 @@ export const registerAdBlockSW = async () => {
     return;
   }
 
+  // Skip SW registration in development — Vite dev server serves sw.js as
+  // text/html (SPA fallback) which causes a SecurityError. SW is not needed
+  // in dev; it only provides value in the production build.
+  if (import.meta.env.DEV) {
+    console.info("[SW AdBlock] Skipping registration in dev mode");
+    return;
+  }
+
   try {
     // Aggressive unregister first to clear out the broken SW that intercepted all fetches
     const registrations = await navigator.serviceWorker.getRegistrations();

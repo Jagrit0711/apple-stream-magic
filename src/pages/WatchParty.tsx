@@ -100,12 +100,12 @@ const WatchParty = () => {
     }
   };
 
-  let playerSrc = `https://player.videasy.net/${activeContent.contentType}/${activeContent.contentId}`;
+  let playerSrc = `https://www.vidking.net/embed/${activeContent.contentType}/${activeContent.contentId}`;
   if (activeContent.contentType === "tv" && activeContent.season && activeContent.episode) {
     playerSrc += `/${activeContent.season}/${activeContent.episode}`;
   }
   // Remove autoplay so users load into the video paused and wait for the countdown to click it themselves!
-  playerSrc += "?color=E11D48&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true";
+  playerSrc += "?color=e50914&nextEpisode=true&episodeSelector=true";
 
   return (
     <div className="h-screen w-screen bg-black flex flex-col overflow-hidden font-sans text-white">
