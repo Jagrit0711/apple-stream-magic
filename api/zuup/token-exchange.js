@@ -3,19 +3,41 @@ const OAUTH_TOKEN_ENDPOINT =
   process.env.VITE_ZUUP_TOKEN_URL ||
   "https://qnapwukqhybziduhzpow.supabase.co/auth/v1/oauth/token";
 
+const setCorsHeaders = (req, res) => {
+  const origin = req.headers.origin || "*";
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+};
+
 export default async function handler(req, res) {
+  setCorsHeaders(req, res);
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "method_not_allowed" });
   }
 
-  const { code, code_verifier, redirect_uri, client_id } = req.body || {};
+  let body = req.body || {};
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body || "{}");
+    } catch {
+      return res.status(400).json({ error: "invalid_json" });
+    }
+  }
+  const { code, code_verifier, redirect_uri, client_id } = body;
 
   if (!code || !code_verifier) {
     return res.status(400).json({ error: "missing_required_fields" });
   }
 
   const clientId = process.env.ZUUP_CLIENT_ID || process.env.VITE_ZUUP_CLIENT_ID || client_id;
-  const clientSecret = process.env.ZUUP_CLIENT_SECRET || process.env.VITE_ZUUP_CLIENT_SECRET;
+  const clientSecret = process.env.ZUUP_CLIENT_SECRET;
 
   if (!clientId) {
     return res.status(500).json({ error: "missing_client_id" });
