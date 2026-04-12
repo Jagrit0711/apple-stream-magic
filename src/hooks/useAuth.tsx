@@ -22,7 +22,11 @@ interface AuthContextType {
     created_at: string;
     updated_at: string;
   } | null;
-  signUp: (email: string, password: string, displayName: string) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    displayName: string
+  ) => Promise<{ error: Error | null; needsEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   completeOnboarding: (genres: number[]) => Promise<void>;
@@ -98,12 +102,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName } },
+      options: {
+        data: { display_name: displayName },
+        emailRedirectTo: `${window.location.origin}/`,
+      },
     });
+    const needsEmailConfirmation = !error && !data?.session && !!data?.user;
+
     if (!error && data?.session?.user) {
       await fetchProfile(data.session.user);
     }
-    return { error: error as Error | null };
+
+    return { error: error as Error | null, needsEmailConfirmation };
   };
 
   const signIn = async (email: string, password: string) => {

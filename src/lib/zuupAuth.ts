@@ -10,7 +10,7 @@ export const getZuupConfig = () => {
     (import.meta.env.VITE_ZUUP_SCOPE as string | undefined) || "openid profile email offline_access";
   const redirectUri =
     (import.meta.env.VITE_ZUUP_REDIRECT_URI as string | undefined) ||
-    `${window.location.origin}/auth/zuup/callback`;
+    `${window.location.origin}/callback`;
 
   return { authBase, clientId, clientSecret, tokenExchangeUrl, scope, redirectUri };
 };

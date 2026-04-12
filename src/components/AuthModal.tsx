@@ -16,16 +16,25 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await signUp(email, password, displayName);
+        const { error, needsEmailConfirmation } = await signUp(email, password, displayName.trim());
         if (error) throw error;
+
+        if (needsEmailConfirmation) {
+          setSuccess("Account created. Please verify your email, then sign in.");
+          setMode("login");
+          setPassword("");
+          return;
+        }
       } else {
         const { error } = await signIn(email, password);
         if (error) throw error;
@@ -96,6 +105,7 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
               />
 
               {error && <p className="text-destructive text-xs">{error}</p>}
+              {success && <p className="text-emerald-400 text-xs">{success}</p>}
 
               <button
                 type="submit"
@@ -110,6 +120,7 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
                 type="button"
                 onClick={() => {
                   setError("");
+                  setSuccess("");
                   void loginWithZuup().catch((err: any) => {
                     setError(err?.message || "Failed to start Zuup login");
                   });
@@ -127,7 +138,7 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
 
             <p className="text-center text-meta text-xs mt-5">
               {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
-              <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }} className="text-accent hover:underline">
+              <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); setSuccess(""); }} className="text-accent hover:underline">
                 {mode === "login" ? "Sign up" : "Sign in"}
               </button>
             </p>

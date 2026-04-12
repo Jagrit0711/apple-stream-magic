@@ -35,6 +35,7 @@ const AnimatedRoutes = () => {
         <Route path="/watch-party/:roomId" element={<PageTransition><AccessGate><WatchParty /></AccessGate></PageTransition>} />
         <Route path="/profile" element={<PageTransition><AccessGate><Profile /></AccessGate></PageTransition>} />
         <Route path="/admin" element={<PageTransition><AccessGate requireAdmin><Admin /></AccessGate></PageTransition>} />
+        <Route path="/callback" element={<PageTransition><ZuupCallback /></PageTransition>} />
         <Route path="/auth/zuup/callback" element={<PageTransition><ZuupCallback /></PageTransition>} />
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
