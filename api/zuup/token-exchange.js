@@ -1,6 +1,6 @@
 const OAUTH_TOKEN_ENDPOINT =
+  process.env.ZUUP_TOKEN_URL ||
   process.env.ZUUP_OAUTH_TOKEN_URL ||
-  process.env.VITE_ZUUP_TOKEN_URL ||
   "https://qnapwukqhybziduhzpow.supabase.co/auth/v1/oauth/token";
 
 const setCorsHeaders = (req, res) => {
@@ -30,21 +30,29 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "invalid_json" });
     }
   }
-  const { code, code_verifier, redirect_uri, client_id } = body;
+  const { code, code_verifier, redirect_uri } = body;
 
   if (!code || !code_verifier) {
     return res.status(400).json({ error: "missing_required_fields" });
   }
 
-  const clientId = process.env.ZUUP_CLIENT_ID || process.env.VITE_ZUUP_CLIENT_ID || client_id;
+  const clientId = process.env.ZUUP_CLIENT_ID;
   const clientSecret = process.env.ZUUP_CLIENT_SECRET;
 
-  if (!clientId) {
-    return res.status(500).json({ error: "missing_client_id" });
-  }
+  const missingEnvKeys = [];
+  if (!clientId) missingEnvKeys.push("ZUUP_CLIENT_ID");
+  if (!clientSecret) missingEnvKeys.push("ZUUP_CLIENT_SECRET");
 
-  if (!clientSecret) {
-    return res.status(500).json({ error: "missing_server_secret" });
+  if (missingEnvKeys.length > 0) {
+    console.error("[zuup-token-exchange] Missing server env keys", {
+      missing: missingEnvKeys,
+      hasTokenUrl: Boolean(process.env.ZUUP_TOKEN_URL || process.env.ZUUP_OAUTH_TOKEN_URL),
+    });
+
+    return res.status(500).json({
+      error: "server_not_configured",
+      missing: missingEnvKeys,
+    });
   }
 
   const fallbackRedirectUri = `${req.headers.origin || "https://watch.zuup.dev"}/callback`;
