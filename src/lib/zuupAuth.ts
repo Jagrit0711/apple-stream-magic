@@ -2,7 +2,15 @@ export const ZUUP_AUTH_STATE_KEY = "zuup_auth_state";
 export const ZUUP_AUTH_VERIFIER_KEY = "zuup_auth_verifier";
 
 export const getZuupConfig = () => {
-  const authBase = (import.meta.env.VITE_ZUUP_AUTH_URL as string | undefined) || "https://auth.zuup.dev";
+  const authBase =
+    (import.meta.env.VITE_ZUUP_AUTH_URL as string | undefined) ||
+    "https://qnapwukqhybziduhzpow.supabase.co/auth/v1/oauth";
+  const authorizeUrl =
+    (import.meta.env.VITE_ZUUP_AUTHORIZE_URL as string | undefined) ||
+    `${authBase.replace(/\/$/, "")}/authorize`;
+  const tokenUrl =
+    (import.meta.env.VITE_ZUUP_TOKEN_URL as string | undefined) ||
+    `${authBase.replace(/\/$/, "")}/token`;
   const clientId = (import.meta.env.VITE_ZUUP_CLIENT_ID as string | undefined) || "zuupcode";
   const clientSecret = (import.meta.env.VITE_ZUUP_CLIENT_SECRET as string | undefined) || "";
   const tokenExchangeUrl = (import.meta.env.VITE_ZUUP_TOKEN_EXCHANGE_URL as string | undefined) || "";
@@ -12,7 +20,7 @@ export const getZuupConfig = () => {
     (import.meta.env.VITE_ZUUP_REDIRECT_URI as string | undefined) ||
     `${window.location.origin}/callback`;
 
-  return { authBase, clientId, clientSecret, tokenExchangeUrl, scope, redirectUri };
+  return { authBase, authorizeUrl, tokenUrl, clientId, clientSecret, tokenExchangeUrl, scope, redirectUri };
 };
 
 const generateState = () => {
@@ -53,7 +61,7 @@ type ZuupTokenResponse = {
 };
 
 export const loginWithZuup = async () => {
-  const { authBase, clientId, redirectUri, scope } = getZuupConfig();
+  const { authorizeUrl, clientId, redirectUri, scope } = getZuupConfig();
   if (!clientId) {
     throw new Error("Zuup client ID is not configured.");
   }
@@ -75,17 +83,17 @@ export const loginWithZuup = async () => {
     code_challenge_method: "S256",
   });
 
-  window.location.href = `${authBase}/authorize?${params.toString()}`;
+  window.location.href = `${authorizeUrl}?${params.toString()}`;
 };
 
 export const exchangeZuupCode = async (code: string) => {
-  const { authBase, clientId, clientSecret, redirectUri, tokenExchangeUrl } = getZuupConfig();
+  const { tokenUrl, clientId, clientSecret, redirectUri, tokenExchangeUrl } = getZuupConfig();
   const verifier = sessionStorage.getItem(ZUUP_AUTH_VERIFIER_KEY);
   if (!verifier) {
     throw new Error("Missing PKCE verifier. Please start login again.");
   }
 
-  const endpoint = tokenExchangeUrl || `${authBase}/token`;
+  const endpoint = tokenExchangeUrl || tokenUrl;
   const isProxy = Boolean(tokenExchangeUrl);
   const res = await fetch(
     endpoint,
