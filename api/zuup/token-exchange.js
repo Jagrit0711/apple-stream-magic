@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const fallbackRedirectUri = `${req.headers.origin || "https://watch.zuup.dev"}/callback`;
+  const fallbackRedirectUri = `${req.headers.origin || "https://watch.zuup.dev"}/auth/zuup/callback`;
   const redirectUri = redirect_uri || process.env.ZUUP_REDIRECT_URI || fallbackRedirectUri;
 
   const tokenParams = new URLSearchParams({
