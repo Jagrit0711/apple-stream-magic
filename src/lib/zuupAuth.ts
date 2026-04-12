@@ -11,7 +11,7 @@ export const getZuupConfig = () => {
   const tokenUrl =
     (import.meta.env.VITE_ZUUP_TOKEN_URL as string | undefined) ||
     `${authBase.replace(/\/$/, "")}/token`;
-  const clientId = (import.meta.env.VITE_ZUUP_CLIENT_ID as string | undefined) || "zuupcode";
+  const clientId = ((import.meta.env.VITE_ZUUP_CLIENT_ID as string | undefined) || "").trim();
   const tokenExchangeUrl =
     (import.meta.env.VITE_ZUUP_TOKEN_EXCHANGE_URL as string | undefined) ||
     "/api/zuup/token-exchange";
@@ -21,7 +21,17 @@ export const getZuupConfig = () => {
     (import.meta.env.VITE_ZUUP_REDIRECT_URI as string | undefined) ||
     `${window.location.origin}/auth/zuup/callback`;
 
-  return { authBase, authorizeUrl, tokenUrl, clientId, tokenExchangeUrl, scope, redirectUri };
+  const normalizedRedirectUri = redirectUri.trim().replace(/\/+$/, "");
+
+  return {
+    authBase,
+    authorizeUrl,
+    tokenUrl,
+    clientId,
+    tokenExchangeUrl,
+    scope,
+    redirectUri: normalizedRedirectUri,
+  };
 };
 
 const generateState = () => {
@@ -64,7 +74,10 @@ type ZuupTokenResponse = {
 export const loginWithZuup = async () => {
   const { authorizeUrl, clientId, redirectUri, scope } = getZuupConfig();
   if (!clientId) {
-    throw new Error("Zuup client ID is not configured.");
+    throw new Error("VITE_ZUUP_CLIENT_ID is missing.");
+  }
+  if (!redirectUri) {
+    throw new Error("VITE_ZUUP_REDIRECT_URI is missing.");
   }
 
   const state = generateState();
