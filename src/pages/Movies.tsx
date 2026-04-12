@@ -17,7 +17,7 @@ const Movies = () => {
   const { data: nowPlaying = [] } = useQuery({ queryKey: ["now-playing"], queryFn: fetchNowPlayingMovies });
   const { data: upcoming = [] } = useQuery({ queryKey: ["upcoming"], queryFn: fetchUpcomingMovies });
   const { data: topRatedMovies = [] } = useQuery({ queryKey: ["top-rated-movies"], queryFn: fetchTopRatedMovies });
-  const { continueWatching, trackWatch } = useWatchHistory();
+  const { continueWatching, history, trackWatch } = useWatchHistory();
   const movieContinue = continueWatching.filter(i => i.media_type === "movie");
   
   const { data: genreMovies = [] } = useQuery({ 
@@ -30,10 +30,14 @@ const Movies = () => {
 
   const handleSelect = (item: any) => setSelectedItem(item);
   const handlePlay = (item: any) => {
-    trackWatch(item);
-    setPlayer({ id: item.id, type: "movie" });
+    const existing = history.find(h => h.tmdb_id === item.id && h.media_type === "movie");
+    if (!existing) {
+      trackWatch(item);
+    }
+    setPlayer({ id: item.id, type: "movie", resumeSeconds: existing?.position_seconds ?? undefined });
   };
-  const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number) => setPlayer({ id, type, season: s, episode: e });
+  const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number, r?: number) =>
+    setPlayer({ id, type, season: s, episode: e, resumeSeconds: r });
 
   const shelves = selectedGenre 
     ? [{ title: `${MOVIE_GENRES.find(g => g.id === selectedGenre)?.name} Movies`, items: genreMovies }]

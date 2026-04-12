@@ -6,7 +6,7 @@ import { useTVNav } from "@/hooks/useTVNav";
 
 interface ContinueWatchingShelfProps {
   items: WatchHistoryItem[];
-  onPlay: (id: number, type: "movie" | "tv", season?: number, episode?: number) => void;
+  onPlay: (id: number, type: "movie" | "tv", season?: number, episode?: number, resumeSeconds?: number) => void;
 }
 
 const CW_ROW = -1; // Between hero (-2) and content shelves (0+)
@@ -30,7 +30,7 @@ const ContinueWatchingShelf = ({ items, onPlay }: ContinueWatchingShelfProps) =>
     const captured = items;
     registerRowAction(CW_ROW, (col) => {
       const item = captured[col];
-      if (item) onPlay(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined);
+      if (item) onPlay(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined, item.position_seconds ?? undefined);
     });
     return () => unregisterRowAction(CW_ROW);
   }, [isTV, items, onPlay, registerRowAction, unregisterRowAction]);
@@ -80,7 +80,7 @@ const ContinueWatchingShelf = ({ items, onPlay }: ContinueWatchingShelfProps) =>
             <button
               key={item.id}
               data-card
-              onClick={() => onPlay(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
+              onClick={() => onPlay(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined, item.position_seconds ?? undefined)}
               className={`
                 flex-shrink-0 w-[220px] sm:w-[280px] group focus:outline-none snap-start
                 active:scale-[0.98] touch-manipulation transition-all duration-200

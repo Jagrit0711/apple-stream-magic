@@ -9,6 +9,7 @@ interface VideoPlayerProps {
   type: "movie" | "tv";
   season?: number;
   episode?: number;
+  resumeSeconds?: number;
   onClose: () => void;
 }
 
@@ -19,7 +20,7 @@ const isTVDevice = () =>
   navigator.userAgent.toLowerCase().includes("tv") ||
   navigator.userAgent.toLowerCase().includes("smart-tv");
 
-const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerProps) => {
+const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose }: VideoPlayerProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -194,6 +195,11 @@ const VideoPlayer = ({ contentId, type, season, episode, onClose }: VideoPlayerP
     src += `/${playingSeason}/${playingEpisode}`;
   }
   src += "?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true";
+  const resumeAt = Math.max(0, Math.floor(resumeSeconds ?? 0));
+  if (resumeAt > 0) {
+    // Best-effort support for different player query conventions.
+    src += `&startAt=${resumeAt}&start=${resumeAt}&t=${resumeAt}`;
+  }
 
   const title = (detail as any)?.title || (detail as any)?.name || "";
 

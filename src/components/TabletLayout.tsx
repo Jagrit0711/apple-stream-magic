@@ -33,7 +33,7 @@ interface TabletLayoutProps {
   // Actions
   onSelect: (item: TMDBMovie) => void;
   onPlay: (item: TMDBMovie) => void;
-  onPlayDirect?: (id: number, type: "movie" | "tv", season?: number, episode?: number) => void;
+  onPlayDirect?: (id: number, type: "movie" | "tv", season?: number, episode?: number, resumeSeconds?: number) => void;
   onSearchClick: () => void;
   onAuthClick: () => void;
   // Auth
@@ -379,7 +379,7 @@ const TabletShelf = ({ title, items, onSelect }: {
 // ─── Continue Watching (tablet style - landscape cards) ───────────────────────
 const TabletContinueWatching = ({ items, onPlay }: {
   items: any[];
-  onPlay: (id: number, type: "movie" | "tv", season?: number, episode?: number) => void;
+  onPlay: (id: number, type: "movie" | "tv", season?: number, episode?: number, resumeSeconds?: number) => void;
 }) => {
   if (!items.length) return null;
   return (
@@ -393,7 +393,7 @@ const TabletContinueWatching = ({ items, onPlay }: {
           const backdrop = img(item.backdrop_path || item.poster_path, "w780");
           return (
             <button key={item.id}
-              onClick={() => onPlay(item.tmdb_id, item.media_type, item.season, item.episode)}
+              onClick={() => onPlay(item.tmdb_id, item.media_type, item.season, item.episode, item.position_seconds)}
               className="flex-shrink-0 group focus:outline-none"
               style={{ width: "220px" }}
             >
@@ -573,7 +573,7 @@ const TabletLayout = ({
 
           {/* Continue Watching */}
           {continueWatching.length > 0 && activeNav === "Home" && (
-            <TabletContinueWatching items={continueWatching} onPlay={(id, type, s, e) => onPlayDirect?.(id, type, s, e)} />
+            <TabletContinueWatching items={continueWatching} onPlay={(id, type, s, e, r) => onPlayDirect?.(id, type, s, e, r)} />
           )}
 
           {/* Content Shelves */}

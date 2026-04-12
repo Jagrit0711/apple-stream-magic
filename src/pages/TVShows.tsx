@@ -17,7 +17,7 @@ const TVShows = () => {
   const { data: airingToday = [] } = useQuery({ queryKey: ["airing-today"], queryFn: fetchAiringTodayTV });
   const { data: popularTV = [] } = useQuery({ queryKey: ["popular-tv"], queryFn: fetchPopularTV });
   const { data: onTheAir = [] } = useQuery({ queryKey: ["on-the-air"], queryFn: fetchOnTheAirTV });
-  const { continueWatching, trackWatch } = useWatchHistory();
+  const { continueWatching, history, trackWatch } = useWatchHistory();
   const tvContinue = continueWatching.filter(i => i.media_type === "tv");
   
   const { data: genreTV = [] } = useQuery({ 
@@ -30,10 +30,20 @@ const TVShows = () => {
 
   const handleSelect = (item: any) => setSelectedItem(item);
   const handlePlay = (item: any) => {
-    trackWatch(item);
-    setPlayer({ id: item.id, type: "tv", season: 1, episode: 1 });
+    const existing = history.find(h => h.tmdb_id === item.id && h.media_type === "tv");
+    if (!existing) {
+      trackWatch(item, 5, null, 1, 1);
+    }
+    setPlayer({
+      id: item.id,
+      type: "tv",
+      season: existing?.season ?? 1,
+      episode: existing?.episode ?? 1,
+      resumeSeconds: existing?.position_seconds ?? undefined,
+    });
   };
-  const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number) => setPlayer({ id, type, season: s, episode: e });
+  const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number, r?: number) =>
+    setPlayer({ id, type, season: s, episode: e, resumeSeconds: r });
 
   const shelves = selectedGenre 
     ? [{ title: `${TV_GENRES.find(g => g.id === selectedGenre)?.name} TV Shows`, items: genreTV }]

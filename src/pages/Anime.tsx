@@ -11,7 +11,8 @@ const Anime = () => {
   const anime = animeData?.results || [];
 
   const handleSelect = (item: any) => setSelectedItem(item);
-  const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number) => setPlayer({ id, type, season: s, episode: e });
+  const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number, r?: number) =>
+    setPlayer({ id, type, season: s, episode: e, resumeSeconds: r });
 
   return (
     <div className="min-h-screen bg-background">

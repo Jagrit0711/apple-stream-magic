@@ -67,12 +67,14 @@ export type Database = {
           backdrop_path: string | null
           added_to_watchlist_at: string | null
           duration: number | null
+          duration_seconds: number | null
           episode: number | null
           id: string
           in_watchlist: boolean
           last_watched_at: string
           media_type: string
           poster_path: string | null
+          position_seconds: number | null
           progress: number
           season: number | null
           title: string
@@ -83,12 +85,14 @@ export type Database = {
           backdrop_path?: string | null
           added_to_watchlist_at?: string | null
           duration?: number | null
+          duration_seconds?: number | null
           episode?: number | null
           id?: string
           in_watchlist?: boolean
           last_watched_at?: string
           media_type: string
           poster_path?: string | null
+          position_seconds?: number | null
           progress?: number
           season?: number | null
           title: string
@@ -99,12 +103,14 @@ export type Database = {
           backdrop_path?: string | null
           added_to_watchlist_at?: string | null
           duration?: number | null
+          duration_seconds?: number | null
           episode?: number | null
           id?: string
           in_watchlist?: boolean
           last_watched_at?: string
           media_type?: string
           poster_path?: string | null
+          position_seconds?: number | null
           progress?: number
           season?: number | null
           title?: string

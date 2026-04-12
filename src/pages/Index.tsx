@@ -38,7 +38,7 @@ import { hasAppAccess } from "@/lib/access";
 
 const Index = () => {
   const { user, profile } = useAuth();
-  const { continueWatching, recentlyWatched, history, trackWatch } = useWatchHistory();
+  const { continueWatching, recentlyWatched, history, trackWatch, getHistoryEntry } = useWatchHistory();
   const { recommendations, personalizedShelves } = useSmartRecommendations(history);
   const accessGranted = hasAppAccess(profile);
 
@@ -108,10 +108,21 @@ const Index = () => {
   });
 
   const handleSelect = (item: TMDBMovie) => setSelectedItem(item);
-  const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number) => setPlayer({ id, type, season: s, episode: e });
+  const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number, r?: number) =>
+    setPlayer({ id, type, season: s, episode: e, resumeSeconds: r });
   const handlePlay = (item: TMDBMovie) => {
-    trackWatch(item);
-    handlePlayDirect(item.id, getContentType(item));
+    const type = getContentType(item);
+    const existing = getHistoryEntry(item.id, type);
+    if (!existing) {
+      trackWatch(item);
+    }
+    handlePlayDirect(
+      item.id,
+      type,
+      existing?.season ?? undefined,
+      existing?.episode ?? undefined,
+      existing?.position_seconds ?? undefined,
+    );
   };
 
   const genreNameById = (id: number) => {
@@ -120,10 +131,7 @@ const Index = () => {
   };
 
   const shelves = useMemo(() => {
-    const s: { title: string; items: TMDBMovie[] }[] = [
-      { title: "Trending Today", items: trendingDay.slice(0, 20) },
-      { title: "Trending This Week", items: trending.slice(1, 20) },
-    ];
+    const s: { title: string; items: TMDBMovie[] }[] = [];
     if (recommendations.length > 0) s.push({ title: "🤖 AI Picks For You", items: recommendations });
     if (personalizedShelves?.length > 0) {
       s.push(...personalizedShelves);
@@ -237,7 +245,7 @@ const Index = () => {
                       {recentlyWatched.map(item => (
                         <button
                           key={item.id}
-                          onClick={() => handlePlayDirect(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined)}
+                          onClick={() => handlePlayDirect(item.tmdb_id, item.media_type as "movie" | "tv", item.season ?? undefined, item.episode ?? undefined, item.position_seconds ?? undefined)}
                           className="flex-shrink-0 w-[120px] sm:w-[160px] group focus:outline-none active:scale-[0.97] touch-manipulation"
                         >
                           <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface mb-2">

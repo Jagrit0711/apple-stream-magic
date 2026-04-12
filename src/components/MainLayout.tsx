@@ -13,7 +13,7 @@ import { hasAppAccess } from "@/lib/access";
 
 interface LayoutContextType {
   setSelectedItem: (item: TMDBMovie | null) => void;
-  setPlayer: (player: { id: number; type: "movie" | "tv"; season?: number; episode?: number } | null) => void;
+  setPlayer: (player: { id: number; type: "movie" | "tv"; season?: number; episode?: number; resumeSeconds?: number } | null) => void;
   setSearchOpen: (open: boolean) => void;
   setAuthOpen: (open: boolean) => void;
   // TV nav needs to call these from outside — expose them via context
@@ -44,7 +44,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [player, setPlayer] = useState<{ id: number; type: "movie" | "tv"; season?: number; episode?: number } | null>(null);
+  const [player, setPlayer] = useState<{ id: number; type: "movie" | "tv"; season?: number; episode?: number; resumeSeconds?: number } | null>(null);
   const [selectedItem, setSelectedItem] = useState<TMDBMovie | null>(null);
 
   // TV nav content registry — row → items[]
@@ -162,6 +162,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               type={player.type}
               season={player.season}
               episode={player.episode}
+              resumeSeconds={player.resumeSeconds}
               onClose={() => setPlayer(null)}
             />
           )}
