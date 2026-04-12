@@ -1,0 +1,65 @@
+const OAUTH_TOKEN_ENDPOINT =
+  process.env.ZUUP_OAUTH_TOKEN_URL ||
+  process.env.VITE_ZUUP_TOKEN_URL ||
+  "https://qnapwukqhybziduhzpow.supabase.co/auth/v1/oauth/token";
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "method_not_allowed" });
+  }
+
+  const { code, code_verifier, redirect_uri, client_id } = req.body || {};
+
+  if (!code || !code_verifier) {
+    return res.status(400).json({ error: "missing_required_fields" });
+  }
+
+  const clientId = process.env.ZUUP_CLIENT_ID || process.env.VITE_ZUUP_CLIENT_ID || client_id;
+  const clientSecret = process.env.ZUUP_CLIENT_SECRET || process.env.VITE_ZUUP_CLIENT_SECRET;
+
+  if (!clientId) {
+    return res.status(500).json({ error: "missing_client_id" });
+  }
+
+  if (!clientSecret) {
+    return res.status(500).json({ error: "missing_server_secret" });
+  }
+
+  const fallbackRedirectUri = `${req.headers.origin || "https://watch.zuup.dev"}/callback`;
+  const redirectUri = redirect_uri || process.env.ZUUP_REDIRECT_URI || fallbackRedirectUri;
+
+  const tokenParams = new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: clientId,
+    client_secret: clientSecret,
+    code,
+    redirect_uri: redirectUri,
+    code_verifier,
+  });
+
+  try {
+    const upstreamResponse = await fetch(OAUTH_TOKEN_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: tokenParams,
+    });
+
+    const upstreamBody = await upstreamResponse.json().catch(() => ({}));
+
+    if (!upstreamResponse.ok) {
+      return res.status(upstreamResponse.status).json({
+        error: "token_exchange_failed",
+        details: upstreamBody,
+      });
+    }
+
+    return res.status(200).json(upstreamBody);
+  } catch (error) {
+    return res.status(502).json({
+      error: "upstream_unreachable",
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}

@@ -12,15 +12,16 @@ export const getZuupConfig = () => {
     (import.meta.env.VITE_ZUUP_TOKEN_URL as string | undefined) ||
     `${authBase.replace(/\/$/, "")}/token`;
   const clientId = (import.meta.env.VITE_ZUUP_CLIENT_ID as string | undefined) || "zuupcode";
-  const clientSecret = (import.meta.env.VITE_ZUUP_CLIENT_SECRET as string | undefined) || "";
-  const tokenExchangeUrl = (import.meta.env.VITE_ZUUP_TOKEN_EXCHANGE_URL as string | undefined) || "";
+  const tokenExchangeUrl =
+    (import.meta.env.VITE_ZUUP_TOKEN_EXCHANGE_URL as string | undefined) ||
+    "/api/zuup/token-exchange";
   const scope =
     (import.meta.env.VITE_ZUUP_SCOPE as string | undefined) || "openid profile email offline_access";
   const redirectUri =
     (import.meta.env.VITE_ZUUP_REDIRECT_URI as string | undefined) ||
     `${window.location.origin}/callback`;
 
-  return { authBase, authorizeUrl, tokenUrl, clientId, clientSecret, tokenExchangeUrl, scope, redirectUri };
+  return { authBase, authorizeUrl, tokenUrl, clientId, tokenExchangeUrl, scope, redirectUri };
 };
 
 const generateState = () => {
@@ -87,41 +88,22 @@ export const loginWithZuup = async () => {
 };
 
 export const exchangeZuupCode = async (code: string) => {
-  const { tokenUrl, clientId, clientSecret, redirectUri, tokenExchangeUrl } = getZuupConfig();
+  const { clientId, redirectUri, tokenExchangeUrl } = getZuupConfig();
   const verifier = sessionStorage.getItem(ZUUP_AUTH_VERIFIER_KEY);
   if (!verifier) {
     throw new Error("Missing PKCE verifier. Please start login again.");
   }
 
-  const endpoint = tokenExchangeUrl || tokenUrl;
-  const isProxy = Boolean(tokenExchangeUrl);
-  const res = await fetch(
-    endpoint,
-    isProxy
-      ? {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            grant_type: "authorization_code",
-            client_id: clientId,
-            code,
-            redirect_uri: redirectUri,
-            code_verifier: verifier,
-          }),
-        }
-      : {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            grant_type: "authorization_code",
-            client_id: clientId,
-            ...(clientSecret ? { client_secret: clientSecret } : {}),
-            code,
-            redirect_uri: redirectUri,
-            code_verifier: verifier,
-          }),
-        }
-  );
+  const res = await fetch(tokenExchangeUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: verifier,
+      client_id: clientId,
+    }),
+  });
 
   const body = (await res.json().catch(() => ({}))) as ZuupTokenResponse;
   if (!res.ok || body.error) {
