@@ -4,6 +4,8 @@ import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { exchangeZuupCode, ZUUP_AUTH_STATE_KEY, ZUUP_AUTH_VERIFIER_KEY } from "@/lib/zuupAuth";
 
+const getExchangeLockKey = (code: string) => `zuup_exchange_lock:${code}`;
+
 const ZuupCallback = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string>("");
@@ -50,16 +52,26 @@ const ZuupCallback = () => {
       let refreshToken = params.refreshToken;
 
       if (params.code) {
+        const lockKey = getExchangeLockKey(params.code);
+        if (sessionStorage.getItem(lockKey) === "1") {
+          setError("Login code is already being processed. Please wait or retry sign-in.");
+          return;
+        }
+
+        sessionStorage.setItem(lockKey, "1");
         try {
           const tokenResponse = await exchangeZuupCode(params.code);
           accessToken = tokenResponse.access_token || "";
           refreshToken = tokenResponse.refresh_token || "";
         } catch (exchangeError: any) {
+          sessionStorage.removeItem(lockKey);
           sessionStorage.removeItem(ZUUP_AUTH_STATE_KEY);
           sessionStorage.removeItem(ZUUP_AUTH_VERIFIER_KEY);
           setError(exchangeError?.message || "Could not exchange Zuup code.");
           return;
         }
+
+        sessionStorage.removeItem(lockKey);
       }
 
       if (!accessToken || !refreshToken) {

@@ -19,6 +19,15 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== "POST") {
+    if (req.method === "GET") {
+      return res.status(405).json({
+        error: "method_not_allowed",
+        method: req.method,
+        message: "Use POST from callback page. Do not navigate directly to /api/zuup/token-exchange.",
+        expected: ["POST", "OPTIONS"],
+      });
+    }
+
     return res.status(405).json({
       error: "method_not_allowed",
       method: req.method,
@@ -60,7 +69,16 @@ export default async function handler(req, res) {
   }
 
   const fallbackRedirectUri = `${req.headers.origin || "https://watch.zuup.dev"}/auth/zuup/callback`;
-  const redirectUri = redirect_uri || process.env.ZUUP_REDIRECT_URI || fallbackRedirectUri;
+  const expectedRedirectUri = (process.env.ZUUP_REDIRECT_URI || fallbackRedirectUri).trim().replace(/\/+$/, "");
+  const requestedRedirectUri = (redirect_uri || "").trim().replace(/\/+$/, "");
+  const redirectUri = expectedRedirectUri;
+
+  if (requestedRedirectUri && requestedRedirectUri !== expectedRedirectUri) {
+    console.warn("[zuup-token-exchange] redirect_uri mismatch", {
+      requestedRedirectUri,
+      expectedRedirectUri,
+    });
+  }
 
   const tokenParams = new URLSearchParams({
     grant_type: "authorization_code",
@@ -72,6 +90,16 @@ export default async function handler(req, res) {
   });
 
   try {
+    console.info("[zuup-token-exchange] Exchanging authorization code", {
+      endpoint: OAUTH_TOKEN_ENDPOINT,
+      method: "POST",
+      contentType: "application/x-www-form-urlencoded",
+      hasCode: Boolean(code),
+      hasCodeVerifier: Boolean(code_verifier),
+      redirectUri,
+      clientId,
+    });
+
     const upstreamResponse = await fetch(OAUTH_TOKEN_ENDPOINT, {
       method: "POST",
       headers: {
@@ -80,12 +108,31 @@ export default async function handler(req, res) {
       body: tokenParams,
     });
 
-    const upstreamBody = await upstreamResponse.json().catch(() => ({}));
+    const upstreamText = await upstreamResponse.text();
+    const upstreamContentType = upstreamResponse.headers.get("content-type") || "";
+    let upstreamBody;
+    try {
+      upstreamBody = upstreamText ? JSON.parse(upstreamText) : {};
+    } catch {
+      upstreamBody = { raw: upstreamText };
+    }
 
     if (!upstreamResponse.ok) {
+      console.error("[zuup-token-exchange] Upstream token exchange failed", {
+        status: upstreamResponse.status,
+        contentType: upstreamContentType,
+        body: upstreamBody,
+      });
+
+      // Return upstream payload directly when JSON so frontend gets exact provider error body.
+      if (upstreamContentType.includes("application/json")) {
+        return res.status(upstreamResponse.status).json(upstreamBody);
+      }
+
       return res.status(upstreamResponse.status).json({
         error: "token_exchange_failed",
-        details: upstreamBody,
+        status: upstreamResponse.status,
+        upstream: upstreamBody,
       });
     }
 

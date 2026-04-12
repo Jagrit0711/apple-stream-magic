@@ -80,6 +80,10 @@ export const loginWithZuup = async () => {
     throw new Error("VITE_ZUUP_REDIRECT_URI is missing.");
   }
 
+  if (/\/api\//i.test(redirectUri)) {
+    throw new Error("Invalid VITE_ZUUP_REDIRECT_URI. OAuth redirect_uri must point to callback page, not /api/ endpoint.");
+  }
+
   const state = generateState();
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
