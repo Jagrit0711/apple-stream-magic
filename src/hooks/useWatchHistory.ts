@@ -11,6 +11,8 @@ export interface WatchHistoryItem {
   title: string;
   poster_path: string | null;
   backdrop_path: string | null;
+  in_watchlist: boolean;
+  added_to_watchlist_at: string | null;
   progress: number;
   duration: number | null;
   season: number | null;
@@ -75,27 +77,11 @@ export const useWatchHistory = () => {
       // Fallback for title to satisfy NOT NULL constraint on INSERT
       if (!payload.title) payload.title = `Content ${entry.tmdb_id}`;
 
-      // Check if record already exists to bypass finicky unique constraint errors on UPSERT
-      const { data: existing } = await supabase
+      const { error } = await supabase
         .from("apple_user_content" as any)
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("tmdb_id", entry.tmdb_id)
-        .eq("media_type", entry.media_type)
-        .maybeSingle();
+        .upsert(payload, { onConflict: "user_id,tmdb_id,media_type" });
 
-      if (existing) {
-        const { error } = await supabase
-          .from("apple_user_content" as any)
-          .update(payload)
-          .eq("id", (existing as any).id);
-        if (error) console.error("Watch history update error:", error);
-      } else {
-        const { error } = await supabase
-          .from("apple_user_content" as any)
-          .insert(payload);
-        if (error) console.error("Watch history insert error:", error);
-      }
+      if (error) console.error("Watch history upsert error:", error);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watch-history"] }),
   });
@@ -132,6 +118,15 @@ export const useWatchHistory = () => {
         // { id, progress, type/media_type, title, season, episode }
         // { event: "timeupdate", currentTime, duration, ... }
 
+        const readNumber = (...values: unknown[]) => {
+          for (const value of values) {
+            if (value === null || value === undefined || value === "") continue;
+            const parsed = Number(value);
+            if (!Number.isNaN(parsed)) return parsed;
+          }
+          return undefined;
+        };
+
         let tmdb_id: number | undefined;
         let progressPct: number | undefined;
         let media_type: string = "movie";
@@ -140,26 +135,28 @@ export const useWatchHistory = () => {
         let season: number | undefined;
         let episode: number | undefined;
 
+        const source = data.data && typeof data.data === "object" ? data.data : data;
+
         // Format 1: videasy standard
-        if (data.id && data.progress !== undefined) {
-          tmdb_id = Number(data.id);
-          progressPct = Number(data.progress);
-          media_type = data.type || data.media_type || "movie";
-          title = data.title;
-          duration = data.duration ? Number(data.duration) : null;
-          season = data.season ? Number(data.season) : undefined;
-          episode = data.episode ? Number(data.episode) : undefined;
+        if (source.id !== undefined || source.tmdb_id !== undefined || source.contentId !== undefined) {
+          tmdb_id = readNumber(source.tmdb_id, source.contentId, source.content_id, source.id, source.movieId, source.tvId);
+          progressPct = readNumber(source.progress, source.percent, source.percentage);
+          media_type = source.type || source.media_type || (source.tvId ? "tv" : "movie");
+          title = source.title || source.name;
+          duration = readNumber(source.duration, source.totalDuration, source.length) ?? null;
+          season = readNumber(source.season, source.season_number);
+          episode = readNumber(source.episode, source.episode_number);
         }
         // Format 2: timeupdate event
-        else if (data.event === "timeupdate" && data.currentTime && data.duration) {
-          tmdb_id = data.id ? Number(data.id) : undefined;
-          const pct = (Number(data.currentTime) / Number(data.duration)) * 100;
+        else if (source.event === "timeupdate" && source.currentTime && source.duration) {
+          tmdb_id = readNumber(source.tmdb_id, source.contentId, source.content_id, source.id, source.movieId, source.tvId);
+          const pct = (Number(source.currentTime) / Number(source.duration)) * 100;
           progressPct = Math.round(pct);
-          media_type = data.type || "movie";
-          title = data.title;
-          duration = Number(data.duration);
-          season = data.season ? Number(data.season) : undefined;
-          episode = data.episode ? Number(data.episode) : undefined;
+          media_type = source.type || source.media_type || "movie";
+          title = source.title || source.name;
+          duration = Number(source.duration);
+          season = readNumber(source.season, source.season_number);
+          episode = readNumber(source.episode, source.episode_number);
         }
 
         if (!tmdb_id || progressPct === undefined || isNaN(tmdb_id) || isNaN(progressPct)) return;

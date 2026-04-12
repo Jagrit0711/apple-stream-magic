@@ -28,17 +28,19 @@ import ContentShelf from "@/components/ContentShelf";
 import Top10Shelf from "@/components/Top10Shelf";
 import ContinueWatchingShelf from "@/components/ContinueWatchingShelf";
 import Onboarding from "@/components/Onboarding";
-import Landing from "@/components/Landing";
+import Landing from "../components/Landing";
 import MobileCategories from "@/components/MobileCategories";
 import { useIsMobile } from "@/hooks/use-mobile";
 import TabletLayout from "@/components/TabletLayout";
 import { SkeletonShelf, SkeletonHero } from "@/components/Skeletons";
 import { useLayout } from "@/components/MainLayout";
+import { hasAppAccess } from "@/lib/access";
 
 const Index = () => {
   const { user, profile } = useAuth();
-  const { continueWatching, recentlyWatched, history } = useWatchHistory();
+  const { continueWatching, recentlyWatched, history, trackWatch } = useWatchHistory();
   const { recommendations, personalizedShelves } = useSmartRecommendations(history);
+  const accessGranted = hasAppAccess(profile);
 
   // TV mode detection — persisted in localStorage so no flash on reload
   const [isTVMode, setIsTVMode] = useState(() => {
@@ -107,7 +109,10 @@ const Index = () => {
 
   const handleSelect = (item: TMDBMovie) => setSelectedItem(item);
   const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number) => setPlayer({ id, type, season: s, episode: e });
-  const handlePlay = (item: TMDBMovie) => handlePlayDirect(item.id, getContentType(item));
+  const handlePlay = (item: TMDBMovie) => {
+    trackWatch(item);
+    handlePlayDirect(item.id, getContentType(item));
+  };
 
   const genreNameById = (id: number) => {
     const genres: Record<number, string> = { 28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime", 99: "Documentary", 18: "Drama", 14: "Fantasy", 27: "Horror", 10749: "Romance", 878: "Sci-Fi", 53: "Thriller" };
@@ -157,8 +162,16 @@ const Index = () => {
     return s.filter(shelf => shelf.items && shelf.items.length > 0);
   }, [trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, genreMovies1, genreMovies2, favoriteGenres, recommendations, personalizedShelves, actionMovies, sciFiMovies, comedyTV, familyMovies]);
 
-  if (!user && trendingDay.length > 0) {
-    return <Landing trending={trendingDay} onAuthClick={() => setAuthOpen(true)} />;
+  if (!user || !accessGranted) {
+    return (
+      <Landing
+        trending={trendingDay}
+        onAuthClick={() => setAuthOpen(true)}
+        accessLocked={Boolean(user && !accessGranted)}
+        userName={profile?.display_name || user?.email || undefined}
+        hasAccount={Boolean(user)}
+      />
+    );
   }
 
   return (

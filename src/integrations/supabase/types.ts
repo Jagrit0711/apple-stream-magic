@@ -14,14 +14,19 @@ export type Database = {
   }
   public: {
     Tables: {
-      profiles: {
+      apple_profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           display_name: string | null
           favorite_genres: number[] | null
           id: string
+          is_admin: boolean
           onboarding_complete: boolean
+          plan_price: number | null
+          renewal_whatsapp: string | null
+          subscription_expires_at: string | null
+          subscription_status: string
           updated_at: string
           user_id: string
         }
@@ -31,7 +36,12 @@ export type Database = {
           display_name?: string | null
           favorite_genres?: number[] | null
           id?: string
+          is_admin?: boolean
           onboarding_complete?: boolean
+          plan_price?: number | null
+          renewal_whatsapp?: string | null
+          subscription_expires_at?: string | null
+          subscription_status?: string
           updated_at?: string
           user_id: string
         }
@@ -41,19 +51,25 @@ export type Database = {
           display_name?: string | null
           favorite_genres?: number[] | null
           id?: string
+          is_admin?: boolean
           onboarding_complete?: boolean
+          plan_price?: number | null
+          renewal_whatsapp?: string | null
+          subscription_expires_at?: string | null
+          subscription_status?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: []
       }
-      watch_history: {
+      apple_user_content: {
         Row: {
           backdrop_path: string | null
-          created_at: string
+          added_to_watchlist_at: string | null
           duration: number | null
           episode: number | null
           id: string
+          in_watchlist: boolean
           last_watched_at: string
           media_type: string
           poster_path: string | null
@@ -65,10 +81,11 @@ export type Database = {
         }
         Insert: {
           backdrop_path?: string | null
-          created_at?: string
+          added_to_watchlist_at?: string | null
           duration?: number | null
           episode?: number | null
           id?: string
+          in_watchlist?: boolean
           last_watched_at?: string
           media_type: string
           poster_path?: string | null
@@ -80,10 +97,11 @@ export type Database = {
         }
         Update: {
           backdrop_path?: string | null
-          created_at?: string
+          added_to_watchlist_at?: string | null
           duration?: number | null
           episode?: number | null
           id?: string
+          in_watchlist?: boolean
           last_watched_at?: string
           media_type?: string
           poster_path?: string | null

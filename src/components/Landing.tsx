@@ -1,269 +1,461 @@
-import { useEffect, useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { Play, Tv, Users, Film, ChevronRight, ChevronDown, Sparkles } from "lucide-react";
-import { TMDBMovie, img } from "@/lib/tmdb";
+import { useMemo } from "react";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Crown,
+  MessageCircle,
+  PlayCircle,
+  Sparkles,
+  Star,
+  Tv,
+  WandSparkles,
+} from "lucide-react";
+import {
+  getWhatsAppLink,
+  SUBSCRIPTION_PRICE_RUPEES,
+  SUPPORT_WHATSAPP_NUMBER,
+} from "@/lib/access";
+import { TMDBMovie, getTitle, img } from "@/lib/tmdb";
 
 interface LandingProps {
   trending: TMDBMovie[];
   onAuthClick: () => void;
+  accessLocked?: boolean;
+  userName?: string;
+  hasAccount?: boolean;
 }
 
-const Landing = ({ trending, onAuthClick }: LandingProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: containerRef });
-  
-  const y1 = useTransform(scrollYProgress, [0, 1], [0, -500]);
-  const y2 = useTransform(scrollYProgress, [0, 1], [0, 500]);
+const CAPABILITIES = [
+  {
+    title: "Smart AI Recommendations",
+    copy: "Because-you-watched rails and behavior-aware picks update from your history.",
+    icon: Sparkles,
+  },
+  {
+    title: "Watch Party Sync",
+    copy: "Join rooms, sync countdown starts, and chat while streaming together.",
+    icon: MessageCircle,
+  },
+  {
+    title: "Continue Watching",
+    copy: "Resume exactly where you left off across episodes, seasons, and devices.",
+    icon: PlayCircle,
+  },
+  {
+    title: "TV + Mobile Navigation",
+    copy: "Remote-friendly controls on TVs with fast touch flow on phones.",
+    icon: Tv,
+  },
+];
 
-  // Use the best posters from trending for our cinematic background wall
-  const posters = trending
-    .filter((t) => t.poster_path)
-    .map((t) => img(t.poster_path, "w500"))
-    .filter(Boolean) as string[];
+const FLOW_STEPS = [
+  "Login or create your account",
+  "Set profile + favorite genres",
+  "Renew via WhatsApp only",
+  "Access instantly after activation",
+];
 
-  // Split into columns for the parallax wall
-  const col1 = [...posters.slice(0, 6), ...posters.slice(0, 6)];
-  const col2 = [...posters.slice(6, 12), ...posters.slice(6, 12)];
-  const col3 = [...posters.slice(12, 18), ...posters.slice(12, 18)];
-  const col4 = [...posters.slice(1, 7), ...posters.slice(1, 7)];
+const FAQS = [
+  {
+    q: "Is this free?",
+    a: "No. This is a paid membership experience, built for premium streaming access.",
+  },
+  {
+    q: "How can I renew membership?",
+    a: "Renewal is only through WhatsApp support. No direct card checkout flow here.",
+  },
+  {
+    q: "When do I see the support number?",
+    a: "The WhatsApp number is shown after login only.",
+  },
+];
+
+const Landing = ({
+  trending,
+  onAuthClick,
+  accessLocked = false,
+  userName,
+  hasAccount = false,
+}: LandingProps) => {
+  const firstName = userName?.split("@")[0]?.split(" ")[0] || "Viewer";
+
+  const posters = useMemo(
+    () => trending.filter((item) => item.poster_path).slice(0, 24),
+    [trending]
+  );
+
+  const doubledPosters = useMemo(() => {
+    if (posters.length === 0) return [] as TMDBMovie[];
+    return [...posters, ...posters, ...posters];
+  }, [posters]);
+
+  const runway = useMemo(() => posters.slice(0, 12), [posters]);
+
+  const renewalMessage = `Hi, I want to renew my Apple Stream Magic subscription for Rs. ${SUBSCRIPTION_PRICE_RUPEES}. Name: ${firstName}.`;
+  const renewalLink = getWhatsAppLink(renewalMessage);
+
+  const heroTitleMain = hasAccount && accessLocked ? `Welcome Back, ${firstName}.` : "Movies.";
+  const heroTitleAccent = hasAccount && accessLocked ? "Renew. Resume. Dominate." : "Zero limits.";
 
   return (
-    <div ref={containerRef} className="relative bg-black min-h-screen font-sans selection:bg-[#E11D48]/30 overflow-x-hidden">
-      
+    <div className="relative min-h-screen overflow-x-hidden bg-[#06060a] text-white">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_15%_5%,rgba(225,29,72,0.32),transparent_35%),radial-gradient(circle_at_86%_25%,rgba(249,115,22,0.14),transparent_34%),linear-gradient(to_bottom,#050509,#06070d_45%,#050507)]" />
 
+      <header className="fixed left-0 right-0 top-0 z-40 border-b border-white/5 bg-black/35 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <button onClick={onAuthClick} className="text-center">
+            <p className="text-[48px] font-black leading-none tracking-[-0.05em] sm:text-[52px]">Watch</p>
+            <p className="mt-1 text-[12px] font-bold tracking-[0.35em] text-white/75">BY ZUUP</p>
+          </button>
 
-      {/* Hero Section */}
-      <div className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
-        
-        {/* Cinematic Parallax Poster Wall */}
-        <div className="absolute inset-0 z-0 overflow-hidden flex justify-center gap-4 sm:gap-6 lg:gap-8 opacity-40 scale-[1.15] -rotate-6 blur-[2px] pointer-events-none">
-          {/* Column 1 (Scrolls Up) */}
-          <motion.div 
-            animate={{ y: ["0%", "-50%"] }}
-            transition={{ repeat: Infinity, ease: "linear", duration: 40 }}
-            className="flex flex-col gap-4 sm:gap-6 lg:gap-8 w-[150px] sm:w-[220px] lg:w-[280px]"
-          >
-            {col1.map((p, i) => (
-              <img key={i} src={p} className="w-full aspect-[2/3] object-cover rounded-2xl shadow-2xl" />
-            ))}
-          </motion.div>
-          {/* Column 2 (Scrolls Down) */}
-          <motion.div 
-            animate={{ y: ["-50%", "0%"] }}
-            transition={{ repeat: Infinity, ease: "linear", duration: 50 }}
-            className="flex flex-col gap-4 sm:gap-6 lg:gap-8 w-[150px] sm:w-[220px] lg:w-[280px] -mt-[300px]"
-          >
-            {col2.map((p, i) => (
-              <img key={i} src={p} className="w-full aspect-[2/3] object-cover rounded-2xl shadow-2xl" />
-            ))}
-          </motion.div>
-          {/* Column 3 (Scrolls Up) */}
-          <motion.div 
-            animate={{ y: ["0%", "-50%"] }}
-            transition={{ repeat: Infinity, ease: "linear", duration: 45 }}
-            className="flex flex-col gap-4 sm:gap-6 lg:gap-8 w-[150px] sm:w-[220px] lg:w-[280px] -mt-[150px]"
-          >
-            {col3.map((p, i) => (
-              <img key={i} src={p} className="w-full aspect-[2/3] object-cover rounded-2xl shadow-2xl" />
-            ))}
-          </motion.div>
-          {/* Column 4 (Scrolls Down) - Hidden on smaller screens */}
-          <motion.div 
-            animate={{ y: ["-50%", "0%"] }}
-            transition={{ repeat: Infinity, ease: "linear", duration: 55 }}
-            className="hidden md:flex flex-col gap-4 sm:gap-6 lg:gap-8 w-[150px] sm:w-[220px] lg:w-[280px] -mt-[400px]"
-          >
-            {col4.map((p, i) => (
-              <img key={i} src={p} className="w-full aspect-[2/3] object-cover rounded-2xl shadow-2xl" />
-            ))}
-          </motion.div>
+          <div className="flex items-center gap-3">
+            {!hasAccount && (
+              <button
+                onClick={onAuthClick}
+                className="rounded-full bg-[#f40f63] px-5 py-2.5 text-sm font-black transition hover:bg-[#ff2d78]"
+              >
+                Login
+              </button>
+            )}
+
+            {hasAccount && accessLocked && (
+              <a
+                href={renewalLink}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full bg-[#f40f63] px-5 py-2.5 text-sm font-black transition hover:bg-[#ff2d78]"
+              >
+                Renew via WhatsApp
+              </a>
+            )}
+          </div>
         </div>
+      </header>
 
-        {/* Deep Gradients to melt the posters into the background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/80 to-black z-0" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)] z-0" />
+      <section className="relative min-h-[92vh] overflow-hidden border-b border-white/5 pt-24 sm:pt-28">
+        {doubledPosters.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 z-0 hidden md:block">
+            <motion.div
+              className="absolute left-[-20%] top-[6%] flex w-max gap-4"
+              animate={{ x: [0, -820] }}
+              transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+            >
+              {doubledPosters.map((item, index) => (
+                <img
+                  key={`drift-a-${item.id}-${index}`}
+                  src={img(item.poster_path, "w500") || undefined}
+                  alt={getTitle(item)}
+                  className="h-[42vh] w-[145px] rounded-2xl object-cover opacity-55 blur-[0.4px]"
+                />
+              ))}
+            </motion.div>
 
-        {/* Hero Content */}
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto flex flex-col items-center mt-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            <motion.div
+              className="absolute bottom-[7%] left-[-28%] flex w-max gap-4"
+              animate={{ x: [-920, 0] }}
+              transition={{ duration: 68, repeat: Infinity, ease: "linear" }}
+            >
+              {doubledPosters.map((item, index) => (
+                <img
+                  key={`drift-b-${item.id}-${index}`}
+                  src={img(item.poster_path, "w500") || undefined}
+                  alt={getTitle(item)}
+                  className="h-[46vh] w-[156px] rounded-2xl object-cover opacity-55 blur-[0.4px]"
+                />
+              ))}
+            </motion.div>
+
+            <div className="absolute inset-0 bg-gradient-to-b from-black/78 via-black/72 to-[#050508]" />
+          </div>
+        )}
+
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_40%,rgba(237,27,93,0.36),transparent_48%)]" />
+
+        <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-4 pb-20 pt-16 text-center sm:px-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-bold text-white/95">
+            <span className="h-2 w-2 rounded-full bg-[#ff145f]" />
+            Paid premium streaming experience
+          </div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.65 }}
+            className="mt-7 text-5xl font-black leading-[0.93] tracking-[-0.04em] sm:text-7xl"
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/80 text-xs font-medium mb-8 backdrop-blur-md">
-              <span className="w-2 h-2 rounded-full bg-[#E11D48] animate-pulse" />
-              Now entirely free to stream
-            </div>
-          </motion.div>
-          
-          <motion.h1 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="text-5xl sm:text-7xl lg:text-8xl font-bold text-white tracking-tight leading-[1.1] mb-6"
-            style={{ fontFamily: "'Outfit', sans-serif" }}
-          >
-            Movies.<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E11D48] via-fuchsia-500 to-[#E11D48] animate-gradient bg-300%">
-              Zero limits.
+            {heroTitleMain}
+            <span className="mt-2 block bg-gradient-to-r from-[#ff1570] via-[#ff3f91] to-[#ffa34b] bg-clip-text text-transparent">
+              {heroTitleAccent}
             </span>
           </motion.h1>
 
-          <motion.p 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="text-lg sm:text-xl text-white/50 max-w-2xl mb-10 leading-relaxed font-medium"
-          >
-            Watch anywhere. Cancel never. Dive into an infinite library of 4K movies, anime, and TV shows—perfectly synchronized with your friends.
-          </motion.p>
+          <p className="mt-7 max-w-2xl text-lg font-semibold leading-relaxed text-white/72">
+            Stream movies, anime, and TV with bold visuals, smart recommendations, watch-party sync, and profile-based access.
+          </p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
-          >
-            <button 
-              onClick={onAuthClick}
-              className="w-full sm:w-auto group relative flex items-center justify-center gap-2 px-8 py-4 bg-[#E11D48] text-white rounded-full font-bold text-lg hover:bg-[#E11D48]/90 transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_-10px_#E11D48]"
-            >
-              Get Started
-              <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
-            </button>
-            <span className="text-xs text-white/30 font-medium">No credit card required.</span>
-          </motion.div>
-        </div>
-
-        {/* Scroll Indicator */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 2.5, duration: 1 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/40 cursor-pointer hover:text-white transition-colors z-20"
-          onClick={() => window.scrollBy({ top: window.innerHeight, behavior: 'smooth' })}
-        >
-          <span className="text-[10px] font-bold tracking-widest uppercase">Explore</span>
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-          >
-            <ChevronDown size={20} />
-          </motion.div>
-        </motion.div>
-      </div>
-
-      {/* Immersive Experience Section */}
-      <div className="relative z-10 py-32 px-6 overflow-hidden bg-black">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-gradient-to-tr from-violet-600/30 via-fuchsia-600/20 to-orange-600/30 rounded-full blur-[120px] pointer-events-none" />
-        
-        <div className="max-w-7xl mx-auto flex flex-col items-center text-center relative z-10">
-          <motion.div
-             initial={{ opacity: 0, scale: 0.9 }}
-             whileInView={{ opacity: 1, scale: 1 }}
-             viewport={{ once: true }}
-             transition={{ duration: 0.8 }}
-             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/90 text-sm font-semibold mb-8 backdrop-blur-md shadow-xl"
-          >
-            <Sparkles size={16} className="text-fuchsia-400" />
-            A Premium Experience
-          </motion.div>
-          
-          <motion.h2 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-8 max-w-4xl tracking-tight leading-[1.1]"
-            style={{ fontFamily: "'Outfit', sans-serif" }}
-          >
-            Built for those who demand <br className="hidden md:block"/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-orange-400">the best visual fidelity.</span>
-          </motion.h2>
-
-          <motion.p 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-lg text-white/50 max-w-2xl font-medium leading-relaxed"
-          >
-            We designed a theater-like environment right in your browser. With intelligent search, smart AI recommendations, and seamless sync capabilities that put you right into the action.
-          </motion.p>
-        </div>
-      </div>
-
-      {/* Feature Section */}
-      <div className="relative z-10 bg-black py-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8 sm:gap-12">
-            {[
-              {
-                icon: <Film size={32} />,
-                title: "Cinematic Quality",
-                desc: "Enjoy trailers, info, and fully native ad-free playback packed directly into a breathtaking glassmorphism interface."
-              },
-              {
-                icon: <Users size={32} />,
-                title: "Watch Party",
-                desc: "Perfectly synchronized streams. Just share a link, click enter, and start the countdown to watch together globally."
-              },
-              {
-                icon: <Tv size={32} />,
-                title: "Every Device",
-                desc: "Phones, tablets, desktops, you name it. A dedicated layout system scales elegantly to whatever screen you own."
-              }
-            ].map((f, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{ duration: 0.8, delay: i * 0.1 }}
-                className="flex flex-col items-center text-center p-8 rounded-3xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] transition-colors"
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            {!hasAccount && (
+              <button
+                onClick={onAuthClick}
+                className="inline-flex items-center gap-2 rounded-full bg-[#f40f63] px-9 py-4 text-base font-black transition hover:scale-[1.02] hover:bg-[#ff2d78]"
               >
-                <div className="w-16 h-16 rounded-2xl bg-[#E11D48]/10 text-[#E11D48] flex items-center justify-center mb-6 shadow-[inset_0_0_20px_rgba(225,29,72,0.2)]">
-                  {f.icon}
+                Get Started
+                <ArrowRight size={16} />
+              </button>
+            )}
+
+            {hasAccount && accessLocked && (
+              <a
+                href={renewalLink}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-[#25D366]/15 px-9 py-4 text-base font-black text-[#25D366] ring-1 ring-[#25D366]/35 transition hover:bg-[#25D366]/25"
+              >
+                Renew on WhatsApp
+                <MessageCircle size={16} />
+              </a>
+            )}
+
+            <button
+              onClick={onAuthClick}
+              className="rounded-full border border-white/25 bg-white/[0.06] px-8 py-4 text-base font-black text-white transition hover:bg-white/[0.14]"
+            >
+              {hasAccount ? "Switch Account" : "I already have an account"}
+            </button>
+          </div>
+
+          <div className="mt-8 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-white/12 bg-black/35 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">Plan</p>
+              <p className="mt-1 text-sm font-black">Rs. {SUBSCRIPTION_PRICE_RUPEES} membership</p>
+            </div>
+            <div className="rounded-xl border border-white/12 bg-black/35 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">Renewal</p>
+              <p className="mt-1 text-sm font-black">WhatsApp only</p>
+            </div>
+            <div className="rounded-xl border border-white/12 bg-black/35 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">Support Number</p>
+              <p className="mt-1 text-sm font-black">
+                {hasAccount ? SUPPORT_WHATSAPP_NUMBER : "Login to view"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/5 py-14">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-4xl rounded-[30px] border border-white/10 bg-gradient-to-r from-[#1a0b22]/80 via-[#290816]/75 to-[#421109]/60 px-6 py-10 text-center sm:px-10">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-bold">
+              <WandSparkles size={14} className="text-[#ff4f98]" />
+              A Premium Experience
+            </div>
+            <h2 className="mt-5 text-4xl font-black leading-[1.04] tracking-[-0.03em] sm:text-6xl">
+              Built for those who demand
+              <span className="block bg-gradient-to-r from-[#9d8bff] via-[#ff64b2] to-[#ffa24c] bg-clip-text text-transparent">
+                the best visual fidelity.
+              </span>
+            </h2>
+            <p className="mx-auto mt-5 max-w-3xl text-lg font-semibold leading-relaxed text-white/70">
+              Theater-like experience with intelligent search, AI recommendation rails, seamless sync, and profile-level personalization.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/5 py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="text-center text-3xl font-black uppercase tracking-[0.08em] sm:text-4xl">Core Features</h2>
+          <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {CAPABILITIES.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <motion.article
+                  key={item.title}
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-90px" }}
+                  transition={{ duration: 0.4, delay: idx * 0.06 }}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-5"
+                >
+                  <div className="inline-flex rounded-lg bg-[#f40f63]/20 p-2.5 text-[#ff2e81]">
+                    <Icon size={18} />
+                  </div>
+                  <h3 className="mt-4 text-xl font-black tracking-tight">{item.title}</h3>
+                  <p className="mt-2 text-sm font-medium leading-relaxed text-white/70">{item.copy}</p>
+                </motion.article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/5 py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-3xl font-black uppercase tracking-[0.08em] sm:text-4xl">What To Watch</h2>
+            <div className="hidden rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-bold sm:block">
+              LIVE TREND FEED
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {runway.map((item, idx) => (
+              <article
+                key={`runway-${item.id}-${idx}`}
+                className="group relative overflow-hidden rounded-2xl border border-white/10"
+              >
+                <div className="aspect-[2/3] bg-black/40">
+                  {item.poster_path ? (
+                    <img
+                      src={img(item.poster_path, "w500") || undefined}
+                      alt={getTitle(item)}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-white/40">No Poster</div>
+                  )}
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3" style={{ fontFamily: "'Outfit', sans-serif" }}>{f.title}</h3>
-                <p className="text-white/50 leading-relaxed text-sm">{f.desc}</p>
-              </motion.div>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/80 to-transparent p-2.5">
+                  <p className="line-clamp-2 text-sm font-black leading-tight tracking-tight text-white">
+                    {getTitle(item)}
+                  </p>
+                  <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#ff4a94]">
+                    TREND #{idx + 1}
+                  </p>
+                </div>
+              </article>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Final CTA */}
-      <div className="relative z-10 py-32 px-6 border-t border-white/5">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6" style={{ fontFamily: "'Outfit', sans-serif" }}>Ready to start watching?</h2>
-          <p className="text-white/50 mb-10 max-w-xl mx-auto">Join thousands of others already experiencing the best way to stream on the internet.</p>
-          <button 
-            onClick={onAuthClick}
-            className="group px-10 py-4 bg-white text-black rounded-full font-bold text-lg hover:bg-gray-200 transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]"
-          >
-            Create Free Account
-          </button>
+      <section className="border-b border-white/5 py-14">
+        <div className="mx-auto grid max-w-7xl gap-5 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
+          <article className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 sm:p-7">
+            <h2 className="text-3xl font-black tracking-tight">Access Flow</h2>
+            <p className="mt-2 text-sm font-semibold text-white/65">
+              Real app flow connected to authentication, profile state, and gated content.
+            </p>
+            <ol className="mt-5 space-y-3">
+              {FLOW_STEPS.map((step, idx) => (
+                <li key={step} className="flex items-center gap-3">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#f40f63]/20 text-xs font-black text-[#ff3285] ring-1 ring-[#f40f63]/40">
+                    {idx + 1}
+                  </span>
+                  <span className="text-sm font-semibold text-white/85">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </article>
+
+          <article className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#f40f63]/18 via-[#f97316]/10 to-transparent p-6 sm:p-7">
+            <h2 className="text-3xl font-black tracking-tight">Membership & Renewal</h2>
+            <p className="mt-2 text-sm font-semibold text-white/72">
+              This service is paid. Renewal is strictly WhatsApp-based support only.
+            </p>
+            <ul className="mt-5 space-y-2 text-sm font-semibold text-white/86">
+              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#ff4f98]" />No free unlimited tier</li>
+              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#ff4f98]" />Renewals handled manually for fast support</li>
+              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#ff4f98]" />Membership starts at Rs. {SUBSCRIPTION_PRICE_RUPEES}</li>
+              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#ff4f98]" />Profile page shows current subscription status</li>
+            </ul>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {!hasAccount && (
+                <button
+                  onClick={onAuthClick}
+                  className="rounded-full bg-white px-6 py-2.5 text-sm font-black text-black transition hover:bg-white/90"
+                >
+                  Login To Renew
+                </button>
+              )}
+              {hasAccount && (
+                <a
+                  href={renewalLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#25D366]/15 px-6 py-2.5 text-sm font-black text-[#25D366] ring-1 ring-[#25D366]/35 transition hover:bg-[#25D366]/25"
+                >
+                  Open WhatsApp Renewal
+                  <MessageCircle size={16} />
+                </a>
+              )}
+              <div className="rounded-full border border-white/20 bg-white/[0.05] px-6 py-2.5 text-xs font-black tracking-[0.12em] text-white/80">
+                {hasAccount ? `SUPPORT: ${SUPPORT_WHATSAPP_NUMBER}` : "SUPPORT NUMBER VISIBLE AFTER LOGIN"}
+              </div>
+            </div>
+          </article>
         </div>
-      </div>
+      </section>
 
-      {/* Deep Footer */}
-      <footer className="relative z-10 py-8 text-center text-white/20 text-xs border-t border-white/5">
-        <p>&copy; {new Date().getFullYear()} Watch by zuup. All rights reserved.</p>
-      </footer>
-      
-      {/* Global Style overrides for the animated gradient text */}
-      <style>{`
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animate-gradient {
-          background-size: 300%;
-          animation: gradient 8s ease infinite;
-        }
-      `}</style>
+      <section className="border-b border-white/5 py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-5 lg:grid-cols-3">
+            <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+              <Star className="text-[#ff4f98]" size={18} />
+              <h3 className="mt-3 text-xl font-black">Top 10 Shelves</h3>
+              <p className="mt-2 text-sm font-semibold text-white/68">Global and region-specific Top 10 stacks are built into browsing.</p>
+            </article>
+            <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+              <Crown className="text-[#ff4f98]" size={18} />
+              <h3 className="mt-3 text-xl font-black">Admin Ready</h3>
+              <p className="mt-2 text-sm font-semibold text-white/68">Admin dashboard and profile controls are already integrated in the app flow.</p>
+            </article>
+            <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+              <PlayCircle className="text-[#ff4f98]" size={18} />
+              <h3 className="mt-3 text-xl font-black">Premium Player UX</h3>
+              <p className="mt-2 text-sm font-semibold text-white/68">Episode picker, auto-next countdown, and TV remote interactions are supported.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+            <article className="rounded-3xl border border-white/10 bg-gradient-to-r from-[#f40f63]/20 via-[#ff7043]/12 to-transparent p-7 sm:p-9">
+              <h2 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl">Ready to enter premium mode?</h2>
+              <p className="mt-4 max-w-2xl text-base font-semibold leading-relaxed text-white/75">
+                {hasAccount
+                  ? "You are logged in. Use WhatsApp renewal to reactivate and continue streaming immediately."
+                  : "Login first, then renew through WhatsApp support to unlock full access."}
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  onClick={onAuthClick}
+                  className="rounded-full bg-white px-7 py-3 text-sm font-black text-black transition hover:bg-white/90"
+                >
+                  {hasAccount ? "Open Account" : "Login / Signup"}
+                </button>
+                {hasAccount && (
+                  <a
+                    href={renewalLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#25D366]/15 px-7 py-3 text-sm font-black text-[#25D366] ring-1 ring-[#25D366]/35"
+                  >
+                    Renew via {SUPPORT_WHATSAPP_NUMBER}
+                    <MessageCircle size={16} />
+                  </a>
+                )}
+              </div>
+            </article>
+
+            <article className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 sm:p-7">
+              <h3 className="text-2xl font-black">FAQ</h3>
+              <div className="mt-4 space-y-3">
+                {FAQS.map((item) => (
+                  <div key={item.q} className="rounded-xl border border-white/10 bg-black/25 p-3.5">
+                    <p className="text-sm font-black">{item.q}</p>
+                    <p className="mt-1.5 text-sm font-semibold leading-relaxed text-white/70">{item.a}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

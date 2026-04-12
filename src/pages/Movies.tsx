@@ -17,7 +17,7 @@ const Movies = () => {
   const { data: nowPlaying = [] } = useQuery({ queryKey: ["now-playing"], queryFn: fetchNowPlayingMovies });
   const { data: upcoming = [] } = useQuery({ queryKey: ["upcoming"], queryFn: fetchUpcomingMovies });
   const { data: topRatedMovies = [] } = useQuery({ queryKey: ["top-rated-movies"], queryFn: fetchTopRatedMovies });
-  const { continueWatching } = useWatchHistory();
+  const { continueWatching, trackWatch } = useWatchHistory();
   const movieContinue = continueWatching.filter(i => i.media_type === "movie");
   
   const { data: genreMovies = [] } = useQuery({ 
@@ -29,6 +29,10 @@ const Movies = () => {
   const movies = moviesData?.results || [];
 
   const handleSelect = (item: any) => setSelectedItem(item);
+  const handlePlay = (item: any) => {
+    trackWatch(item);
+    setPlayer({ id: item.id, type: "movie" });
+  };
   const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number) => setPlayer({ id, type, season: s, episode: e });
 
   const shelves = selectedGenre 
@@ -46,8 +50,8 @@ const Movies = () => {
         <MobileCategories />
       </div>
       
-      {!selectedGenre && nowPlaying.length > 0 && (
-        <FeaturedHero items={nowPlaying} onSelect={handleSelect} onPlay={(item) => handlePlayDirect(item.id, "movie")} />
+        {!selectedGenre && nowPlaying.length > 0 && (
+        <FeaturedHero items={nowPlaying} onSelect={handleSelect} onPlay={handlePlay} />
       )}
       
       <div className={`${(nowPlaying.length > 0 && !selectedGenre) ? "relative z-10 -mt-20 md:-mt-32" : "pt-24 sm:pt-28"} pb-24 md:pb-12`}>

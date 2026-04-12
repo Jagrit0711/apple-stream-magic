@@ -9,6 +9,7 @@ import VideoPlayer from "./VideoPlayer";
 import { TMDBMovie } from "@/lib/tmdb";
 import { useAuth } from "@/hooks/useAuth";
 import { TVNavProvider } from "@/hooks/useTVNav";
+import { hasAppAccess } from "@/lib/access";
 
 interface LayoutContextType {
   setSelectedItem: (item: TMDBMovie | null) => void;
@@ -38,7 +39,8 @@ const HEADER_PATHS = ["/", "/movies", "/tv", "/profile"];
 const MainLayout = ({ children }: MainLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const showShell = Boolean(user && hasAppAccess(profile));
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -124,31 +126,37 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         onRowSelect={handleRowSelect}
       >
         <div className="min-h-screen bg-background text-white font-sans overflow-x-hidden">
-          <Header
-            onSearch={() => {}}
-            onNavChange={() => {}}
-            activeNav={activeNav}
-            onAuthClick={() => setAuthOpen(true)}
-            onSearchClick={() => setSearchOpen(true)}
-          />
+          {showShell && (
+            <Header
+              onSearch={() => {}}
+              onNavChange={() => {}}
+              activeNav={activeNav}
+              onAuthClick={() => setAuthOpen(true)}
+              onSearchClick={() => setSearchOpen(true)}
+            />
+          )}
 
           <main>{children}</main>
 
-          <MobileNavBar
-            activeNav={activeNav}
-            onNavChange={() => {}}
-            onSearchClick={() => setSearchOpen(true)}
-            onAuthClick={() => setAuthOpen(true)}
-            isSearchOpen={searchOpen}
-          />
+          {showShell && (
+            <MobileNavBar
+              activeNav={activeNav}
+              onNavChange={() => {}}
+              onSearchClick={() => setSearchOpen(true)}
+              onAuthClick={() => setAuthOpen(true)}
+              isSearchOpen={searchOpen}
+            />
+          )}
 
-          <DetailView
-            item={selectedItem}
-            onClose={() => setSelectedItem(null)}
-            onPlay={(id, type, s, e) => setPlayer({ id, type, season: s, episode: e })}
-          />
+          {showShell && (
+            <DetailView
+              item={selectedItem}
+              onClose={() => setSelectedItem(null)}
+              onPlay={(id, type, s, e) => setPlayer({ id, type, season: s, episode: e })}
+            />
+          )}
 
-          {player && (
+          {showShell && player && (
             <VideoPlayer
               contentId={player.id}
               type={player.type}
@@ -158,14 +166,16 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             />
           )}
 
-          <SearchOverlay
-            open={searchOpen}
-            onClose={() => setSearchOpen(false)}
-            onSelect={(item) => {
-              setSearchOpen(false);
-              setTimeout(() => navigate(`/${item.media_type}/${item.id}`), 50);
-            }}
-          />
+          {showShell && (
+            <SearchOverlay
+              open={searchOpen}
+              onClose={() => setSearchOpen(false)}
+              onSelect={(item) => {
+                setSearchOpen(false);
+                setTimeout(() => navigate(`/${item.media_type}/${item.id}`), 50);
+              }}
+            />
+          )}
 
           <AuthModal
             open={authOpen}

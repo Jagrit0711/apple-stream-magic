@@ -17,7 +17,7 @@ const TVShows = () => {
   const { data: airingToday = [] } = useQuery({ queryKey: ["airing-today"], queryFn: fetchAiringTodayTV });
   const { data: popularTV = [] } = useQuery({ queryKey: ["popular-tv"], queryFn: fetchPopularTV });
   const { data: onTheAir = [] } = useQuery({ queryKey: ["on-the-air"], queryFn: fetchOnTheAirTV });
-  const { continueWatching } = useWatchHistory();
+  const { continueWatching, trackWatch } = useWatchHistory();
   const tvContinue = continueWatching.filter(i => i.media_type === "tv");
   
   const { data: genreTV = [] } = useQuery({ 
@@ -29,6 +29,10 @@ const TVShows = () => {
   const tvShows = tvData?.results || [];
 
   const handleSelect = (item: any) => setSelectedItem(item);
+  const handlePlay = (item: any) => {
+    trackWatch(item);
+    setPlayer({ id: item.id, type: "tv", season: 1, episode: 1 });
+  };
   const handlePlayDirect = (id: number, type: "movie" | "tv", s?: number, e?: number) => setPlayer({ id, type, season: s, episode: e });
 
   const shelves = selectedGenre 
@@ -47,7 +51,7 @@ const TVShows = () => {
       </div>
 
       {!selectedGenre && popularTV.length > 0 && (
-        <FeaturedHero items={popularTV} onSelect={handleSelect} onPlay={(item) => handlePlayDirect(item.id, "tv")} />
+        <FeaturedHero items={popularTV} onSelect={handleSelect} onPlay={handlePlay} />
       )}
       
       <div className={`${(popularTV.length > 0 && !selectedGenre) ? "relative z-10 -mt-20 md:-mt-32" : "pt-24 sm:pt-28"} pb-24 md:pb-12`}>

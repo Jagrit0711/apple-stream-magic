@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { loginWithZuup } from "@/lib/zuupAuth";
 
 interface AuthModalProps {
   open: boolean;
@@ -103,6 +104,24 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}
                 {mode === "login" ? "Sign In" : "Create Account"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  void loginWithZuup().catch((err: any) => {
+                    setError(err?.message || "Failed to start Zuup login");
+                  });
+                }}
+                className="w-full border border-white/15 bg-white/5 text-foreground py-3 rounded-xl font-semibold text-sm hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+              >
+                <img
+                  src="https://www.zuup.dev/lovable-uploads/b44b8051-6117-4b37-999d-014c4c33dd13.png"
+                  alt="Zuup"
+                  className="h-5 w-5 rounded-sm object-cover"
+                />
+                Login with Zuup
               </button>
             </form>
 

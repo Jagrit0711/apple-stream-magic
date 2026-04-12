@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import ContentCard from "@/components/ContentCard";
 import { MOVIE_GENRES } from "@/lib/tmdb";
+import { getWhatsAppLink, SUPPORT_WHATSAPP_NUMBER, SUBSCRIPTION_PRICE_RUPEES } from "@/lib/access";
 
 const Profile = () => {
   const { user, profile, signOut, updateProfile } = useAuth();
@@ -17,6 +18,7 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
   const [selectedGenres, setSelectedGenres] = useState<number[]>(profile?.favorite_genres || []);
+  const renewalMessage = getWhatsAppLink(`Hi, I want to renew my Apple Stream Magic subscription for Rs. ${SUBSCRIPTION_PRICE_RUPEES}.`);
 
   useEffect(() => {
     if (!user) {
@@ -86,9 +88,31 @@ const Profile = () => {
                 <p className="flex items-center gap-2 justify-center md:justify-start">
                   <Heart size={14} className="text-accent" /> {watchlist.length} items in watchlist
                 </p>
+                <p className="flex items-center gap-2 justify-center md:justify-start">
+                  <ShieldCheck size={14} className="text-accent" /> {profile?.subscription_status || "inactive"}
+                </p>
+                <p className="flex items-center gap-2 justify-center md:justify-start">
+                  <Heart size={14} className="text-accent" /> WhatsApp {SUPPORT_WHATSAPP_NUMBER}
+                </p>
               </div>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                {profile?.is_admin && (
+                  <button 
+                    onClick={() => navigate("/admin")}
+                    className="px-6 py-2.5 rounded-xl bg-[#e11d48]/15 hover:bg-[#e11d48]/25 border border-[#e11d48]/25 text-[#e11d48] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                  >
+                    <ShieldCheck size={14} /> Admin Dashboard
+                  </button>
+                )}
+                <a 
+                  href={renewalMessage}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                >
+                  <Heart size={14} /> Renew Plan
+                </a>
                 <button 
                   onClick={() => setIsEditing(!isEditing)}
                   className="px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
@@ -162,6 +186,25 @@ const Profile = () => {
             </motion.div>
           )}
         </div>
+
+        <section className="mb-12 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-meta/60 mb-2">Subscription</p>
+            <h3 className="text-xl font-bold">{profile?.subscription_status || "inactive"}</h3>
+            <p className="mt-2 text-sm text-meta/60">Plan price: Rs. {profile?.plan_price ?? SUBSCRIPTION_PRICE_RUPEES}</p>
+            <p className="mt-1 text-sm text-meta/60">Expires: {profile?.subscription_expires_at ? new Date(profile.subscription_expires_at).toLocaleString() : "No expiry set"}</p>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-meta/60 mb-2">Access</p>
+            <h3 className="text-xl font-bold">{profile?.is_admin ? "Admin access" : "Member access"}</h3>
+            <p className="mt-2 text-sm text-meta/60">{profile?.is_admin ? "You can manage subscriptions and view full watch history." : "Renew via WhatsApp to keep streaming and browsing unlocked."}</p>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-meta/60 mb-2">Support</p>
+            <h3 className="text-xl font-bold">{SUPPORT_WHATSAPP_NUMBER}</h3>
+            <p className="mt-2 text-sm text-meta/60">Use WhatsApp for renewal, activation, or subscription questions.</p>
+          </div>
+        </section>
 
         {/* Watchlist Section */}
         <section className="mb-12">

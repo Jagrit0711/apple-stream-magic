@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { SUPPORT_WHATSAPP_NUMBER, SUBSCRIPTION_PRICE_RUPEES } from "@/lib/access";
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +14,11 @@ interface AuthContextType {
     avatar_url: string | null;
     onboarding_complete: boolean;
     favorite_genres: number[];
+    is_admin: boolean;
+    subscription_status: string;
+    subscription_expires_at: string | null;
+    renewal_whatsapp: string | null;
+    plan_price: number | null;
     created_at: string;
     updated_at: string;
   } | null;
@@ -38,13 +44,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("apple_profiles" as any)
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (data) setProfile(data as any as AuthContextType["profile"]);
+  const fetchProfile = async (currentUser: User) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const { data, error } = await supabase
+        .from("apple_profiles" as any)
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data) {
+        setProfile(data as any as AuthContextType["profile"]);
+        return;
+      }
+
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+    }
+
+    setProfile(null);
   };
 
   useEffect(() => {
@@ -52,29 +71,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        setTimeout(() => fetchProfile(session.user.id), 0);
+        setLoading(true);
+        setTimeout(() => {
+          fetchProfile(session.user).finally(() => setLoading(false));
+        }, 0);
       } else {
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      setLoading(false);
+      if (session?.user) {
+        fetchProfile(session.user).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signUp = async (email: string, password: string, displayName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { display_name: displayName } },
     });
+    if (!error && data?.session?.user) {
+      await fetchProfile(data.session.user);
+    }
     return { error: error as Error | null };
   };
 
@@ -112,7 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
+    if (user) await fetchProfile(user);
   };
 
   return (

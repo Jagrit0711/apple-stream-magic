@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, User, LogOut, Download, X } from "lucide-react";
+import { Search, User, LogOut, Download, X, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -233,6 +233,14 @@ const Header = ({ onSearch, onNavChange, activeNav, onAuthClick, onSearchClick }
                   >
                     <User size={14} /> My Profile
                   </button>
+                  {profile?.is_admin && (
+                    <button
+                      onClick={() => { navigate("/admin"); setMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-meta hover:text-foreground hover:bg-surface transition-colors touch-manipulation border-b border-border"
+                    >
+                      <ShieldCheck size={14} /> Admin Dashboard
+                    </button>
+                  )}
                   <button
                     onClick={() => { signOut(); setMenuOpen(false); }}
                     className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-meta hover:text-foreground hover:bg-surface transition-colors touch-manipulation"

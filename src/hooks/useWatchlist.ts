@@ -11,7 +11,13 @@ export interface WatchlistItem {
   title: string;
   poster_path: string | null;
   backdrop_path: string | null;
-  created_at: string;
+  in_watchlist: boolean;
+  added_to_watchlist_at: string | null;
+  progress: number;
+  duration: number | null;
+  season: number | null;
+  episode: number | null;
+  last_watched_at: string;
 }
 
 export const useWatchlist = () => {
@@ -45,29 +51,13 @@ export const useWatchlist = () => {
     }) => {
       if (!user) throw new Error("Not signed in");
       
-      const { data: existing } = await supabase
-        .from("apple_user_content" as any)
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("tmdb_id", item.tmdb_id)
-        .eq("media_type", item.media_type)
-        .maybeSingle();
-
-      if (existing) {
-        const { error } = await supabase
-          .from("apple_user_content" as any)
-          .update({ in_watchlist: true, added_to_watchlist_at: new Date().toISOString() })
-          .eq("id", (existing as any).id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("apple_user_content" as any).insert({
-          user_id: user.id,
-          ...item,
-          in_watchlist: true,
-          added_to_watchlist_at: new Date().toISOString()
-        });
-        if (error) throw error;
-      }
+      const { error } = await supabase.from("apple_user_content" as any).upsert({
+        user_id: user.id,
+        ...item,
+        in_watchlist: true,
+        added_to_watchlist_at: new Date().toISOString()
+      }, { onConflict: "user_id,tmdb_id,media_type" });
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Added to watchlist");

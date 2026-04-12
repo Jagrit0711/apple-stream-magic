@@ -5,6 +5,7 @@ import { usePersistentMute } from "@/hooks/usePersistentMute";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { useWatchHistory } from "@/hooks/useWatchHistory";
 import {
   TMDBMovie,
   TMDBEpisode,
@@ -30,6 +31,7 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
   const [tvBtnIdx, setTvBtnIdx] = useState(0); // TV remote: which action button is focused
   const navigate = useNavigate();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const { trackWatch } = useWatchHistory();
   const { isMuted, toggleMute } = usePersistentMute();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const type = item ? getContentType(item) : "movie";
@@ -179,6 +181,7 @@ const DetailView = ({ item, onClose, onPlay }: DetailViewProps) => {
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
+                    trackWatch(item, 5, null, type === "tv" ? selectedSeason : undefined, type === "tv" ? 1 : undefined);
                     onClose();
                     onPlay(
                       item.id,
