@@ -16,6 +16,15 @@ export const registerAdBlockSW = async () => {
     return;
   }
 
+  // During OAuth troubleshooting, allow bypassing SW interception.
+  const path = window.location.pathname;
+  const disableForAuth = path.startsWith("/auth/zuup/callback") || path.startsWith("/callback");
+  const disableByQuery = new URLSearchParams(window.location.search).get("disableAdblockSW") === "1";
+  if (disableForAuth || disableByQuery) {
+    console.info("[SW AdBlock] Skipping registration for auth flow/debug mode");
+    return;
+  }
+
   try {
     // Aggressive unregister first to clear out the broken SW that intercepted all fetches
     const registrations = await navigator.serviceWorker.getRegistrations();

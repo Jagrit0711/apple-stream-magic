@@ -54,9 +54,11 @@ export default async function handler(req, res) {
     });
   }
 
-  const clientId = process.env.ZUUP_CLIENT_ID;
+  const clientId = process.env.ZUUP_CLIENT_ID || "zuupwatch";
+  const clientSecret = process.env.ZUUP_CLIENT_SECRET;
   const missingEnvKeys = [];
   if (!clientId) missingEnvKeys.push("ZUUP_CLIENT_ID");
+  if (!clientSecret) missingEnvKeys.push("ZUUP_CLIENT_SECRET");
 
   if (missingEnvKeys.length > 0) {
     console.error("[zuup-token-exchange] Missing server env keys", {
@@ -90,11 +92,14 @@ export default async function handler(req, res) {
     code_verifier,
   };
 
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`, "utf8").toString("base64");
+
   try {
     console.info("[zuup-token-exchange] Exchanging authorization code", {
       endpoint: OAUTH_TOKEN_ENDPOINT,
       method: "POST",
       contentType: "application/json",
+      hasAuthorizationHeader: Boolean(basicAuth),
       hasCode: Boolean(code),
       hasCodeVerifier: Boolean(code_verifier),
       redirectUri,
@@ -105,6 +110,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Basic ${basicAuth}`,
       },
       body: JSON.stringify(tokenPayload),
     });
