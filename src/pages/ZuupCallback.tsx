@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { exchangeZuupCode, ZUUP_AUTH_STATE_KEY, ZUUP_AUTH_VERIFIER_KEY } from "@/lib/zuupAuth";
 
 const getExchangeLockKey = (code: string) => `zuup_exchange_lock:${code}`;
+const ZUUP_LOCAL_SESSION_KEY = "zuup_local_session";
 
 const ZuupCallback = () => {
   const navigate = useNavigate();
@@ -50,6 +50,7 @@ const ZuupCallback = () => {
 
       let accessToken = params.accessToken;
       let refreshToken = params.refreshToken;
+      let userinfo: any = null;
 
       if (params.code) {
         const lockKey = getExchangeLockKey(params.code);
@@ -63,6 +64,7 @@ const ZuupCallback = () => {
           const tokenResponse = await exchangeZuupCode(params.code);
           accessToken = tokenResponse.access_token || "";
           refreshToken = tokenResponse.refresh_token || "";
+          userinfo = (tokenResponse as any).userinfo || null;
         } catch (exchangeError: any) {
           sessionStorage.removeItem(lockKey);
           sessionStorage.removeItem(ZUUP_AUTH_STATE_KEY);
@@ -81,17 +83,15 @@ const ZuupCallback = () => {
         return;
       }
 
-      const { error: sessionError } = await supabase.auth.setSession({
+      const now = Date.now();
+      const persisted = {
         access_token: accessToken,
         refresh_token: refreshToken,
-      });
-
-      if (sessionError) {
-        sessionStorage.removeItem(ZUUP_AUTH_STATE_KEY);
-        sessionStorage.removeItem(ZUUP_AUTH_VERIFIER_KEY);
-        setError(sessionError.message || "Failed to complete Zuup login.");
-        return;
-      }
+        userinfo,
+        updated_at: now,
+      };
+      localStorage.setItem(ZUUP_LOCAL_SESSION_KEY, JSON.stringify(persisted));
+      window.dispatchEvent(new CustomEvent("zuup-auth-updated", { detail: persisted }));
 
       sessionStorage.removeItem(ZUUP_AUTH_STATE_KEY);
       sessionStorage.removeItem(ZUUP_AUTH_VERIFIER_KEY);

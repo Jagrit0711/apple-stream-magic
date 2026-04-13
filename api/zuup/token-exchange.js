@@ -3,6 +3,10 @@ const OAUTH_TOKEN_ENDPOINT =
   process.env.ZUUP_OAUTH_TOKEN_URL ||
   "https://auth.zuup.dev/api/oauth/token";
 
+const OAUTH_USERINFO_ENDPOINT =
+  process.env.ZUUP_USERINFO_URL ||
+  "https://auth.zuup.dev/api/oauth/userinfo";
+
 const setCorsHeaders = (req, res) => {
   const origin = req.headers.origin || "*";
   res.setHeader("Access-Control-Allow-Origin", origin);
@@ -143,7 +147,36 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.status(200).json(upstreamBody);
+    const accessToken = upstreamBody?.access_token;
+    let userinfo = null;
+
+    if (accessToken) {
+      const userinfoResponse = await fetch(OAUTH_USERINFO_ENDPOINT, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const userinfoText = await userinfoResponse.text();
+      try {
+        userinfo = userinfoText ? JSON.parse(userinfoText) : null;
+      } catch {
+        userinfo = { raw: userinfoText };
+      }
+
+      if (!userinfoResponse.ok) {
+        console.warn("[zuup-token-exchange] userinfo fetch failed", {
+          status: userinfoResponse.status,
+          body: userinfo,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      ...upstreamBody,
+      userinfo,
+    });
   } catch (error) {
     return res.status(502).json({
       error: "upstream_unreachable",

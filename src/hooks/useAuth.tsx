@@ -3,6 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 import { SUPPORT_WHATSAPP_NUMBER, SUBSCRIPTION_PRICE_RUPEES } from "@/lib/access";
 
+const ZUUP_LOCAL_SESSION_KEY = "zuup_local_session";
+
+type ZuupLocalSession = {
+  access_token?: string;
+  refresh_token?: string;
+  userinfo?: Record<string, any> | null;
+  updated_at?: number;
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -48,6 +57,69 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
 
+  const mapZuupUser = (zuup: ZuupLocalSession) => {
+    const info = zuup.userinfo || {};
+    const id = String(info.sub || info.id || info.user_id || info.email || "zuup-user");
+    const email = typeof info.email === "string" ? info.email : null;
+    const nowIso = new Date().toISOString();
+    return {
+      id,
+      email,
+      aud: "authenticated",
+      role: "authenticated",
+      created_at: nowIso,
+      updated_at: nowIso,
+      app_metadata: { provider: "zuup", providers: ["zuup"] },
+      user_metadata: {
+        display_name: info.name || info.preferred_username || email || "Zuup User",
+        avatar_url: info.picture || null,
+        zuup_userinfo: info,
+      },
+    } as unknown as User;
+  };
+
+  const mapZuupProfile = (zuupUser: User) => {
+    const info = (zuupUser.user_metadata as any)?.zuup_userinfo || {};
+    const nowIso = new Date().toISOString();
+    return {
+      id: `zuup-${zuupUser.id}`,
+      user_id: zuupUser.id,
+      display_name: (zuupUser.user_metadata as any)?.display_name || null,
+      avatar_url: (zuupUser.user_metadata as any)?.avatar_url || null,
+      onboarding_complete: true,
+      favorite_genres: [],
+      is_admin: Boolean(info.is_admin),
+      subscription_status: (typeof info.subscription_status === "string" ? info.subscription_status : "active"),
+      subscription_expires_at: typeof info.subscription_expires_at === "string" ? info.subscription_expires_at : null,
+      renewal_whatsapp: SUPPORT_WHATSAPP_NUMBER,
+      plan_price: SUBSCRIPTION_PRICE_RUPEES,
+      created_at: nowIso,
+      updated_at: nowIso,
+    } as AuthContextType["profile"];
+  };
+
+  const tryApplyZuupSession = (sessionPayload?: ZuupLocalSession | null) => {
+    const payload = sessionPayload || (() => {
+      try {
+        const raw = localStorage.getItem(ZUUP_LOCAL_SESSION_KEY);
+        return raw ? (JSON.parse(raw) as ZuupLocalSession) : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    if (!payload?.access_token) return false;
+    const zuupUser = mapZuupUser(payload);
+    setSession(null);
+    setUser(zuupUser);
+    setProfile(mapZuupProfile(zuupUser));
+    setLoading(false);
+    return true;
+  };
+
+  const isZuupUser = (candidate: User | null) =>
+    (candidate as any)?.app_metadata?.provider === "zuup";
+
   const fetchProfile = async (currentUser: User) => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const { data, error } = await supabase
@@ -71,6 +143,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    const onZuupAuthUpdated = (event: Event) => {
+      const custom = event as CustomEvent<ZuupLocalSession>;
+      tryApplyZuupSession(custom.detail || null);
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === ZUUP_LOCAL_SESSION_KEY) {
+        tryApplyZuupSession();
+      }
+    };
+
+    window.addEventListener("zuup-auth-updated", onZuupAuthUpdated as EventListener);
+    window.addEventListener("storage", onStorage);
+
+    const isZuupCallbackRoute =
+      window.location.pathname.startsWith("/auth/zuup/callback") ||
+      window.location.pathname.startsWith("/callback");
+
+    if (isZuupCallbackRoute) {
+      setLoading(false);
+      return () => {
+        window.removeEventListener("zuup-auth-updated", onZuupAuthUpdated as EventListener);
+        window.removeEventListener("storage", onStorage);
+      };
+    }
+
+    if (tryApplyZuupSession()) {
+      return () => {
+        window.removeEventListener("zuup-auth-updated", onZuupAuthUpdated as EventListener);
+        window.removeEventListener("storage", onStorage);
+      };
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -95,7 +200,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("zuup-auth-updated", onZuupAuthUpdated as EventListener);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   const signUp = async (email: string, password: string, displayName: string) => {
@@ -122,12 +231,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    if (isZuupUser(user)) {
+      localStorage.removeItem(ZUUP_LOCAL_SESSION_KEY);
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      return;
+    }
+
     await supabase.auth.signOut();
     setProfile(null);
   };
 
   const completeOnboarding = async (genres: number[]) => {
     if (!user) return;
+
+    if (isZuupUser(user)) {
+      setProfile(p => p ? { ...p, onboarding_complete: true, favorite_genres: genres } : p);
+      return;
+    }
+
     await supabase
       .from("apple_profiles" as any)
       .update({ onboarding_complete: true, favorite_genres: genres })
@@ -137,6 +260,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateProfile = async (updates: Partial<AuthContextType["profile"]>) => {
     if (!user) return { error: "No user logged in" };
+
+    if (isZuupUser(user)) {
+      setProfile(p => p ? { ...p, ...updates } : p);
+      return { error: null };
+    }
+
     // @ts-ignore
     const { error } = await supabase
       .from("apple_profiles" as any)
@@ -150,6 +279,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const refreshProfile = async () => {
+    if (isZuupUser(user)) return;
     if (user) await fetchProfile(user);
   };
 
