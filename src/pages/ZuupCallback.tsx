@@ -10,6 +10,7 @@ const ZuupCallback = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string>("");
   const [done, setDone] = useState(false);
+  const [nextRoute, setNextRoute] = useState("/profile");
 
   const params = useMemo(() => {
     const query = new URLSearchParams(window.location.search);
@@ -99,8 +100,10 @@ const ZuupCallback = () => {
       sessionStorage.removeItem(ZUUP_AUTH_STATE_KEY);
       sessionStorage.removeItem(ZUUP_AUTH_VERIFIER_KEY);
 
+      const computedRoute = linkedProfile?.is_admin ? "/admin" : "/profile";
+      setNextRoute(computedRoute);
       setDone(true);
-      setTimeout(() => navigate("/", { replace: true }), 600);
+      setTimeout(() => navigate(computedRoute, { replace: true }), 600);
     };
 
     void finish();
@@ -131,7 +134,7 @@ const ZuupCallback = () => {
             <h1 className="text-xl font-bold">Zuup login failed</h1>
             <p className="mt-2 text-sm text-white/70">{error}</p>
             <button
-              onClick={() => navigate("/", { replace: true })}
+              onClick={() => navigate(nextRoute, { replace: true })}
               className="mt-5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white"
             >
               Back to Home

@@ -69,6 +69,7 @@ begin
   insert into public.apple_profiles (
     user_id,
     display_name,
+    email,
     favorite_genres,
     onboarding_complete,
     is_admin,
@@ -182,10 +183,10 @@ on conflict (user_id) do nothing;
 
 update public.apple_profiles
 set
-  email = coalesce(email, auth_users.email),
-  renewal_whatsapp = coalesce(renewal_whatsapp, '8851844602'),
-  plan_price = coalesce(plan_price, 50),
-  subscription_status = coalesce(subscription_status, 'inactive'),
+  email = coalesce(public.apple_profiles.email, auth_users.email),
+  renewal_whatsapp = coalesce(public.apple_profiles.renewal_whatsapp, '8851844602'),
+  plan_price = coalesce(public.apple_profiles.plan_price, 50),
+  subscription_status = coalesce(public.apple_profiles.subscription_status, 'inactive'),
   updated_at = timezone('utc'::text, now())
 from auth.users auth_users
 where public.apple_profiles.user_id = auth_users.id
