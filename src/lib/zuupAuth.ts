@@ -4,13 +4,13 @@ export const ZUUP_AUTH_VERIFIER_KEY = "zuup_auth_verifier";
 export const getZuupConfig = () => {
   const authBase =
     (import.meta.env.VITE_ZUUP_AUTH_URL as string | undefined) ||
-    "https://qnapwukqhybziduhzpow.supabase.co/auth/v1/oauth";
+    "https://auth.zuup.dev";
   const authorizeUrl =
     (import.meta.env.VITE_ZUUP_AUTHORIZE_URL as string | undefined) ||
     `${authBase.replace(/\/$/, "")}/authorize`;
   const tokenUrl =
     (import.meta.env.VITE_ZUUP_TOKEN_URL as string | undefined) ||
-    `${authBase.replace(/\/$/, "")}/token`;
+    `${authBase.replace(/\/$/, "")}/api/oauth/token`;
   const clientId = ((import.meta.env.VITE_ZUUP_CLIENT_ID as string | undefined) || "").trim();
   const tokenExchangeUrl =
     (import.meta.env.VITE_ZUUP_TOKEN_EXCHANGE_URL as string | undefined) ||
@@ -122,9 +122,21 @@ export const exchangeZuupCode = async (code: string) => {
     }),
   });
 
-  const body = (await res.json().catch(() => ({}))) as ZuupTokenResponse;
+  const raw = await res.text();
+  let body: any = {};
+  try {
+    body = raw ? JSON.parse(raw) : {};
+  } catch {
+    body = { raw };
+  }
+
   if (!res.ok || body.error) {
-    throw new Error(body.error_description || body.error || "Zuup token exchange failed.");
+    const details =
+      body?.error_description ||
+      body?.error ||
+      body?.msg ||
+      (typeof body === "object" ? JSON.stringify(body) : String(body));
+    throw new Error(`Token exchange failed (${res.status}): ${details}`);
   }
 
   return body;

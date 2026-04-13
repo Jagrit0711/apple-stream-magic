@@ -1,7 +1,7 @@
 const OAUTH_TOKEN_ENDPOINT =
   process.env.ZUUP_TOKEN_URL ||
   process.env.ZUUP_OAUTH_TOKEN_URL ||
-  "https://qnapwukqhybziduhzpow.supabase.co/auth/v1/oauth/token";
+  "https://auth.zuup.dev/api/oauth/token";
 
 const setCorsHeaders = (req, res) => {
   const origin = req.headers.origin || "*";
@@ -46,7 +46,12 @@ export default async function handler(req, res) {
   const { code, code_verifier, redirect_uri } = body;
 
   if (!code || !code_verifier) {
-    return res.status(400).json({ error: "missing_required_fields" });
+    return res.status(400).json({
+      error: "missing_required_fields",
+      has_code: Boolean(code),
+      has_code_verifier: Boolean(code_verifier),
+      hint: "Frontend must POST JSON body with code and code_verifier.",
+    });
   }
 
   const clientId = process.env.ZUUP_CLIENT_ID;
