@@ -8,8 +8,9 @@ import { getWhatsAppLink, SUPPORT_WHATSAPP_NUMBER } from "@/lib/access";
 import { toast } from "sonner";
 
 const Admin = () => {
-  const { profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
+  const isZuupUser = (user as any)?.app_metadata?.provider === "zuup";
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [subscriptionStatus, setSubscriptionStatus] = useState("active");
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState("");
@@ -17,8 +18,16 @@ const Admin = () => {
   const [search, setSearch] = useState("");
 
   const { data: profiles = [], isLoading: profilesLoading, refetch: refetchProfiles } = useQuery({
-    queryKey: ["admin-profiles"],
+    queryKey: ["admin-profiles", isZuupUser],
     queryFn: async () => {
+      if (isZuupUser) {
+        const res = await fetch("/api/zuup/profiles?limit=250");
+        const text = await res.text();
+        const parsed = text ? JSON.parse(text) : [];
+        if (!res.ok) throw new Error(parsed?.error || "Failed to fetch profiles");
+        return (Array.isArray(parsed) ? parsed : []) as any[];
+      }
+
       const { data, error } = await supabase
         .from("apple_profiles" as any)
         .select("*")
@@ -29,8 +38,16 @@ const Admin = () => {
   });
 
   const { data: contentRows = [], isLoading: contentLoading, refetch: refetchContent } = useQuery({
-    queryKey: ["admin-content"],
+    queryKey: ["admin-content", isZuupUser],
     queryFn: async () => {
+      if (isZuupUser) {
+        const res = await fetch("/api/zuup/user-content?all=1&limit=250");
+        const text = await res.text();
+        const parsed = text ? JSON.parse(text) : [];
+        if (!res.ok) throw new Error(parsed?.error || "Failed to fetch content");
+        return (Array.isArray(parsed) ? parsed : []) as any[];
+      }
+
       const { data, error } = await supabase
         .from("apple_user_content" as any)
         .select("*")
@@ -51,7 +68,7 @@ const Admin = () => {
     const term = search.trim().toLowerCase();
     if (!term) return profiles;
     return profiles.filter((item: any) =>
-      [item.display_name, item.user_id, item.subscription_status].some(value =>
+      [item.display_name, item.email, item.user_id, item.subscription_status].some(value =>
         String(value || "").toLowerCase().includes(term)
       )
     );
@@ -104,22 +121,43 @@ const Admin = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from("apple_profiles" as any)
-      .update({
-        subscription_status: subscriptionStatus,
-        subscription_expires_at: subscriptionExpiresAt ? new Date(subscriptionExpiresAt).toISOString() : null,
-        is_admin: isAdminFlag,
-      })
-      .eq("user_id", selectedProfile.user_id);
+    if (isZuupUser) {
+      const res = await fetch("/api/zuup/profiles", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: selectedProfile.user_id,
+          updates: {
+            subscription_status: subscriptionStatus,
+            subscription_expires_at: subscriptionExpiresAt ? new Date(subscriptionExpiresAt).toISOString() : null,
+            is_admin: isAdminFlag,
+          },
+        }),
+      });
 
-    if (error) {
-      toast.error(error.message || "Failed to save member");
-      return;
+      if (!res.ok) {
+        const text = await res.text();
+        toast.error(text || "Failed to save member");
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("apple_profiles" as any)
+        .update({
+          subscription_status: subscriptionStatus,
+          subscription_expires_at: subscriptionExpiresAt ? new Date(subscriptionExpiresAt).toISOString() : null,
+          is_admin: isAdminFlag,
+        })
+        .eq("user_id", selectedProfile.user_id);
+
+      if (error) {
+        toast.error(error.message || "Failed to save member");
+        return;
+      }
     }
 
     toast.success("Member updated");
-    await Promise.all([refetchProfiles(), refreshProfile(), queryClient.invalidateQueries({ queryKey: ["admin-profiles"] })]);
+    await Promise.all([refetchProfiles(), refreshProfile(), queryClient.invalidateQueries({ queryKey: ["admin-profiles", isZuupUser] })]);
   };
 
   const renewLink = selectedProfile
@@ -213,6 +251,7 @@ const Admin = () => {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="font-semibold">{item.display_name || "Unnamed member"}</p>
+                        {item.email && <p className="text-xs text-white/55 break-all">{item.email}</p>}
                         <p className="text-xs text-white/45 break-all">{item.user_id}</p>
                       </div>
                       <div className="flex flex-wrap gap-2 justify-end">
@@ -237,6 +276,7 @@ const Admin = () => {
               <div className="space-y-4">
                 <div className="rounded-2xl border border-white/10 bg-black/15 p-4 space-y-1">
                   <p className="text-sm font-semibold">{selectedProfile.display_name || "Unnamed member"}</p>
+                  {selectedProfile.email && <p className="text-xs text-white/55 break-all">{selectedProfile.email}</p>}
                   <p className="text-xs text-white/45 break-all">{selectedProfile.user_id}</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">

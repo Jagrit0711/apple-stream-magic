@@ -31,6 +31,7 @@ end $$;
 
 alter table if exists public.apple_profiles
   add column if not exists is_admin boolean not null default false,
+  add column if not exists email text null,
   add column if not exists subscription_status text not null default 'inactive',
   add column if not exists subscription_expires_at timestamp with time zone null,
   add column if not exists renewal_whatsapp text null default '8851844602',
@@ -79,6 +80,7 @@ begin
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
+    new.email,
     '{}'::integer[],
     false,
     false,
@@ -180,10 +182,16 @@ on conflict (user_id) do nothing;
 
 update public.apple_profiles
 set
+  email = coalesce(email, auth_users.email),
   renewal_whatsapp = coalesce(renewal_whatsapp, '8851844602'),
   plan_price = coalesce(plan_price, 50),
   subscription_status = coalesce(subscription_status, 'inactive'),
   updated_at = timezone('utc'::text, now())
-where renewal_whatsapp is null
-   or plan_price is null
-   or subscription_status is null;
+from auth.users auth_users
+where public.apple_profiles.user_id = auth_users.id
+   and (
+     public.apple_profiles.email is null
+     or public.apple_profiles.renewal_whatsapp is null
+     or public.apple_profiles.plan_price is null
+     or public.apple_profiles.subscription_status is null
+   );

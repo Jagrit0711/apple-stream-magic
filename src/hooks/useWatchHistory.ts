@@ -23,22 +23,33 @@ export interface WatchHistoryItem {
 }
 
 export const useWatchHistory = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
+  const isZuupUser = (user as any)?.app_metadata?.provider === "zuup";
+  const actorUserId = profile?.user_id || user?.id || null;
 
   const { data: history = [] } = useQuery({
-    queryKey: ["watch-history", user?.id],
+    queryKey: ["watch-history", actorUserId, isZuupUser],
     queryFn: async () => {
-      if (!user) return [];
+      if (!actorUserId) return [];
+
+      if (isZuupUser) {
+        const res = await fetch(`/api/zuup/user-content?user_id=${encodeURIComponent(actorUserId)}&limit=20`);
+        const text = await res.text();
+        const parsed = text ? JSON.parse(text) : [];
+        if (!res.ok) throw new Error(parsed?.error || "Failed to fetch watch history");
+        return (Array.isArray(parsed) ? parsed : []) as WatchHistoryItem[];
+      }
+
       const { data } = await supabase
         .from("apple_user_content" as any)
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", actorUserId)
         .order("last_watched_at", { ascending: false })
         .limit(20);
       return (data || []) as any as WatchHistoryItem[];
     },
-    enabled: !!user,
+    enabled: !!actorUserId,
   });
 
   // Items between 5% and 90% progress = continue watching
@@ -61,10 +72,10 @@ export const useWatchHistory = () => {
       season?: number;
       episode?: number;
     }) => {
-      if (!user) return;
+      if (!actorUserId) return;
       
       const payload: any = {
-        user_id: user.id,
+        user_id: actorUserId,
         tmdb_id: entry.tmdb_id,
         media_type: entry.media_type,
         progress: entry.progress,
@@ -82,6 +93,19 @@ export const useWatchHistory = () => {
 
       // Fallback for title to satisfy NOT NULL constraint on INSERT
       if (!payload.title) payload.title = `Content ${entry.tmdb_id}`;
+
+      if (isZuupUser) {
+        const res = await fetch("/api/zuup/user-content", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("Watch history upsert error:", text);
+        }
+        return;
+      }
 
       const { error } = await supabase
         .from("apple_user_content" as any)
@@ -122,7 +146,7 @@ export const useWatchHistory = () => {
   // Listen for progress messages from VIDEASY player
   // Videasy sends postMessage with various formats - handle all of them
   useEffect(() => {
-    if (!user) return;
+    if (!actorUserId) return;
 
     const handler = (event: MessageEvent) => {
       try {
@@ -212,7 +236,7 @@ export const useWatchHistory = () => {
 
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [user, upsertMutation]);
+  }, [actorUserId, upsertMutation]);
 
   const getHistoryEntry = useCallback(
     (tmdbId: number, mediaType: "movie" | "tv", season?: number, episode?: number) => {

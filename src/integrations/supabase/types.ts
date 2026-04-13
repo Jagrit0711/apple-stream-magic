@@ -19,6 +19,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email: string | null
           favorite_genres: number[] | null
           id: string
           is_admin: boolean
@@ -34,6 +35,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           favorite_genres?: number[] | null
           id?: string
           is_admin?: boolean
@@ -49,6 +51,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           favorite_genres?: number[] | null
           id?: string
           is_admin?: boolean

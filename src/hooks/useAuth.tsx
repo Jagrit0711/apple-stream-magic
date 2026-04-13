@@ -9,6 +9,7 @@ type ZuupLocalSession = {
   access_token?: string;
   refresh_token?: string;
   userinfo?: Record<string, any> | null;
+  linked_profile?: Record<string, any> | null;
   updated_at?: number;
 };
 
@@ -59,7 +60,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const mapZuupUser = (zuup: ZuupLocalSession) => {
     const info = zuup.userinfo || {};
-    const id = String(info.sub || info.id || info.user_id || info.email || "zuup-user");
+    const linked = zuup.linked_profile || {};
+    const id = String(linked.user_id || info.user_id || info.supabase_user_id || info.app_user_id || info.watch_user_id || info.sub || info.id || info.email || "zuup-user");
     const email = typeof info.email === "string" ? info.email : null;
     const nowIso = new Date().toISOString();
     return {
@@ -74,12 +76,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         display_name: info.name || info.preferred_username || email || "Zuup User",
         avatar_url: info.picture || null,
         zuup_userinfo: info,
+        zuup_linked_profile: linked,
       },
     } as unknown as User;
   };
 
   const mapZuupProfile = (zuupUser: User) => {
     const info = (zuupUser.user_metadata as any)?.zuup_userinfo || {};
+    const linked = (zuupUser.user_metadata as any)?.zuup_linked_profile || {};
+
+    if (linked && linked.user_id) {
+      return {
+        ...linked,
+      } as AuthContextType["profile"];
+    }
+
     const nowIso = new Date().toISOString();
     return {
       id: `zuup-${zuupUser.id}`,

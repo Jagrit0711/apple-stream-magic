@@ -7,6 +7,9 @@ const OAUTH_USERINFO_ENDPOINT =
   process.env.ZUUP_USERINFO_URL ||
   "https://auth.zuup.dev/api/oauth/userinfo";
 
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 const setCorsHeaders = (req, res) => {
   const origin = req.headers.origin || "*";
   res.setHeader("Access-Control-Allow-Origin", origin);
@@ -149,6 +152,7 @@ export default async function handler(req, res) {
 
     const accessToken = upstreamBody?.access_token;
     let userinfo = null;
+    let linkedProfile = null;
 
     if (accessToken) {
       const userinfoResponse = await fetch(OAUTH_USERINFO_ENDPOINT, {
@@ -171,11 +175,71 @@ export default async function handler(req, res) {
           body: userinfo,
         });
       }
+
+      const possibleUserId =
+        userinfo?.user_id ||
+        userinfo?.supabase_user_id ||
+        userinfo?.app_user_id ||
+        userinfo?.watch_user_id ||
+        userinfo?.sub ||
+        null;
+      const possibleEmail = typeof userinfo?.email === "string" ? userinfo.email.trim().toLowerCase() : null;
+
+      if ((possibleUserId || possibleEmail) && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+        const profileUrl = new URL(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/apple_profiles`);
+        profileUrl.searchParams.set("select", "*");
+        if (possibleEmail) {
+          profileUrl.searchParams.set("email", `eq.${possibleEmail}`);
+        } else {
+          profileUrl.searchParams.set("user_id", `eq.${possibleUserId}`);
+        }
+        profileUrl.searchParams.set("limit", "1");
+
+        const profileRes = await fetch(profileUrl.toString(), {
+          method: "GET",
+          headers: {
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+        });
+
+        const profileText = await profileRes.text();
+        try {
+          const parsed = profileText ? JSON.parse(profileText) : [];
+          linkedProfile = Array.isArray(parsed) ? parsed[0] || null : parsed;
+
+          if (!linkedProfile && possibleUserId && possibleEmail) {
+            const fallbackUrl = new URL(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/apple_profiles`);
+            fallbackUrl.searchParams.set("select", "*");
+            fallbackUrl.searchParams.set("user_id", `eq.${possibleUserId}`);
+            fallbackUrl.searchParams.set("limit", "1");
+
+            const fallbackRes = await fetch(fallbackUrl.toString(), {
+              method: "GET",
+              headers: {
+                apikey: SUPABASE_SERVICE_ROLE_KEY,
+                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              },
+            });
+
+            const fallbackText = await fallbackRes.text();
+            try {
+              const fallbackParsed = fallbackText ? JSON.parse(fallbackText) : [];
+              linkedProfile = Array.isArray(fallbackParsed) ? fallbackParsed[0] || null : fallbackParsed;
+            } catch {
+              linkedProfile = null;
+            }
+          }
+        } catch {
+          linkedProfile = null;
+        }
+      }
     }
 
     return res.status(200).json({
       ...upstreamBody,
       userinfo,
+      linked_profile: linkedProfile,
     });
   } catch (error) {
     return res.status(502).json({

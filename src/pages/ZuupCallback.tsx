@@ -51,6 +51,7 @@ const ZuupCallback = () => {
       let accessToken = params.accessToken;
       let refreshToken = params.refreshToken;
       let userinfo: any = null;
+      let linkedProfile: any = null;
 
       if (params.code) {
         const lockKey = getExchangeLockKey(params.code);
@@ -65,6 +66,7 @@ const ZuupCallback = () => {
           accessToken = tokenResponse.access_token || "";
           refreshToken = tokenResponse.refresh_token || "";
           userinfo = (tokenResponse as any).userinfo || null;
+          linkedProfile = (tokenResponse as any).linked_profile || null;
         } catch (exchangeError: any) {
           sessionStorage.removeItem(lockKey);
           sessionStorage.removeItem(ZUUP_AUTH_STATE_KEY);
@@ -88,6 +90,7 @@ const ZuupCallback = () => {
         access_token: accessToken,
         refresh_token: refreshToken,
         userinfo,
+        linked_profile: linkedProfile,
         updated_at: now,
       };
       localStorage.setItem(ZUUP_LOCAL_SESSION_KEY, JSON.stringify(persisted));
