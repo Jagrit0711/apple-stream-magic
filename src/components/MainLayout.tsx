@@ -211,6 +211,13 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             open={authOpen}
             onClose={() => setAuthOpen(false)}
           />
+
+          <button
+            onClick={() => navigate("/legal")}
+            className="fixed bottom-3 right-3 z-[60] rounded-full border border-white/15 bg-black/40 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/75 hover:text-white hover:bg-black/65 transition-colors"
+          >
+            Legal / DMCA
+          </button>
         </div>
       </TVNavProvider>
     </LayoutContext.Provider>

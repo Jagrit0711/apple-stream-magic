@@ -17,6 +17,7 @@ import WatchParty from "./pages/WatchParty.tsx";
 import Profile from "./pages/Profile.tsx";
 import Admin from "./pages/Admin.tsx";
 import ZuupCallback from "./pages/ZuupCallback.tsx";
+import Legal from "./pages/Legal.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const AnimatedRoutes = () => {
         <Route path="/admin" element={<PageTransition><AccessGate requireAdmin><Admin /></AccessGate></PageTransition>} />
         <Route path="/callback" element={<PageTransition><ZuupCallback /></PageTransition>} />
         <Route path="/auth/zuup/callback" element={<PageTransition><ZuupCallback /></PageTransition>} />
+        <Route path="/legal" element={<PageTransition><Legal /></PageTransition>} />
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>
