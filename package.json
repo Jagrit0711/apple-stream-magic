@@ -1,5 +1,6 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "watch-by-zuup",
+  "author": "Zylon Labs and Jagrit",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,9 +11,17 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "android:add": "npx cap add android",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "apk:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "apk:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

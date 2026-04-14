@@ -46,16 +46,6 @@ const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose 
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Lock orientation to landscape on mobile
-  useEffect(() => {
-    if (!contentId) return;
-    const lock = async () => {
-      try { await (screen.orientation as any)?.lock?.("landscape"); } catch {}
-    };
-    lock();
-    return () => { try { (screen.orientation as any)?.unlock?.(); } catch {} };
-  }, [contentId]);
-
   // Prevent body scroll
   useEffect(() => {
     if (!contentId) return;
@@ -207,7 +197,7 @@ const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose 
     <AnimatePresence>
       {contentId && (
         <motion.div
-          className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center font-sans"
+          className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center landscape:items-stretch landscape:justify-start font-sans"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -531,12 +521,14 @@ const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose 
             key={src}
             onLoad={() => setIsIframeLoaded(true)}
             className={`
-              w-[95%] h-[88%] md:w-full md:h-full
-              rounded-2xl md:rounded-none
-              border border-white/10 md:border-0
+              w-[96vw] h-[54vw] max-h-[88dvh]
+              landscape:w-screen landscape:h-[100dvh] landscape:max-h-[100dvh]
+              md:w-full md:h-full
+              rounded-2xl landscape:rounded-none md:rounded-none
+              border border-white/10 landscape:border-0 md:border-0
               relative z-[90]
               transition-opacity duration-700
-              shadow-2xl md:shadow-none
+              shadow-2xl landscape:shadow-none md:shadow-none
               ${isIframeLoaded ? "opacity-100" : "opacity-0"}
             `}
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Watch by Zuup</string>
+    <string name="title_activity_main">Watch by Zuup</string>
+    <string name="package_name">com.zylonlabs.watchbyzuup</string>
+    <string name="custom_url_scheme">com.zylonlabs.watchbyzuup</string>
+</resources>
