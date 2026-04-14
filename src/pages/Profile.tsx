@@ -1,23 +1,31 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { motion } from "framer-motion";
 import { 
-  User as UserIcon, Settings, LogOut, 
+  User as UserIcon, Settings, LogOut,
   Trash2, Calendar, Heart, ShieldCheck
 } from "lucide-react";
 import ContentCard from "@/components/ContentCard";
 import { MOVIE_GENRES } from "@/lib/tmdb";
 import { getWhatsAppLink, SUPPORT_WHATSAPP_NUMBER, SUBSCRIPTION_PRICE_RUPEES } from "@/lib/access";
+import { supabase } from "@/integrations/supabase/client";
 
 const Profile = () => {
-  const { user, profile, signOut, updateProfile } = useAuth();
+  const { user, profile, signOut, updateProfile, session } = useAuth();
   const { watchlist, removeFromWatchlist, loading: watchlistLoading } = useWatchlist();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
   const [selectedGenres, setSelectedGenres] = useState<number[]>(profile?.favorite_genres || []);
+  const [pairCodeInput, setPairCodeInput] = useState("");
+  const [pairStatus, setPairStatus] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const detectorRef = useRef<any>(null);
   const renewalMessage = getWhatsAppLink(`Hi, I want to renew my Apple Stream Magic subscription for Rs. ${SUBSCRIPTION_PRICE_RUPEES}.`);
 
   useEffect(() => {
@@ -25,6 +33,126 @@ const Profile = () => {
       navigate("/");
     }
   }, [user, navigate]);
+
+  const approvePairingCode = async (rawCode: string) => {
+    const code = rawCode.trim().toUpperCase();
+    if (!code) return;
+
+    setPairStatus("Approving sign-in...");
+
+    const payload = (() => {
+      if (session?.access_token && session?.refresh_token) {
+        return {
+          kind: "supabase",
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        };
+      }
+
+      try {
+        const raw = localStorage.getItem("zuup_local_session");
+        if (raw) {
+          return {
+            kind: "zuup",
+            session: JSON.parse(raw),
+          };
+        }
+      } catch {}
+
+      return null;
+    })();
+
+    if (!payload) {
+      setPairStatus("No valid session to transfer");
+      return;
+    }
+
+    const ch = supabase.channel(`pair-auth-${code}`);
+    await new Promise<void>((resolve) => {
+      ch.subscribe((status: string) => {
+        if (status === "SUBSCRIBED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          resolve();
+        }
+      });
+    });
+
+    await ch.send({ type: "broadcast", event: "session-transfer", payload });
+    await supabase.removeChannel(ch);
+
+    setPairStatus("Approved. TV/Laptop will sign in now.");
+  };
+
+  useEffect(() => {
+    const pairCode = searchParams.get("pair");
+    if (!pairCode) return;
+    void approvePairingCode(pairCode);
+    const next = new URLSearchParams(searchParams);
+    next.delete("pair");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!isScanning) return;
+    let rafId = 0;
+
+    const runScanner = async () => {
+      if (!("BarcodeDetector" in window)) {
+        setPairStatus("Barcode scanner not supported on this device");
+        setIsScanning(false);
+        return;
+      }
+
+      detectorRef.current = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      const scanLoop = async () => {
+        if (!videoRef.current || !detectorRef.current) {
+          rafId = requestAnimationFrame(() => { void scanLoop(); });
+          return;
+        }
+
+        try {
+          const codes = await detectorRef.current.detect(videoRef.current);
+          if (codes?.length) {
+            const raw = String(codes[0].rawValue || "");
+            const parsed = (() => {
+              try {
+                const u = new URL(raw);
+                return u.searchParams.get("pair") || raw;
+              } catch {
+                return raw;
+              }
+            })();
+
+            setPairCodeInput(parsed);
+            setIsScanning(false);
+            void approvePairingCode(parsed);
+            return;
+          }
+        } catch {}
+
+        rafId = requestAnimationFrame(() => { void scanLoop(); });
+      };
+
+      await scanLoop();
+    };
+
+    void runScanner();
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [isScanning]);
 
   if (!user) return null;
 
@@ -204,6 +332,40 @@ const Profile = () => {
             <h3 className="text-xl font-bold">{SUPPORT_WHATSAPP_NUMBER}</h3>
             <p className="mt-2 text-sm text-meta/60">Use WhatsApp for renewal, activation, or subscription questions.</p>
           </div>
+        </section>
+
+        <section className="mb-12 rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-7">
+          <h2 className="text-xl font-black uppercase tracking-widest">TV/Laptop Pair Sign-in</h2>
+          <p className="mt-2 text-sm text-meta/70">On TV/laptop login screen, open QR sign-in. Then scan it here or enter the code.</p>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input
+              value={pairCodeInput}
+              onChange={(e) => setPairCodeInput(e.target.value.toUpperCase())}
+              placeholder="Enter pairing code"
+              className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-accent"
+            />
+            <button
+              onClick={() => { void approvePairingCode(pairCodeInput); }}
+              className="rounded-xl bg-accent px-5 py-3 text-xs font-black uppercase tracking-widest text-white"
+            >
+              Approve Sign-in
+            </button>
+            <button
+              onClick={() => setIsScanning((v) => !v)}
+              className="rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-widest"
+            >
+              {isScanning ? "Stop Scanner" : "Open Scanner"}
+            </button>
+          </div>
+
+          {isScanning && (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black">
+              <video ref={videoRef} className="h-64 w-full object-cover" playsInline muted />
+            </div>
+          )}
+
+          {pairStatus && <p className="mt-3 text-sm text-emerald-400">{pairStatus}</p>}
         </section>
 
         {/* Watchlist Section */}

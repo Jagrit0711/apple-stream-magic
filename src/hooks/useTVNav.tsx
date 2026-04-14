@@ -39,9 +39,10 @@ interface TVNavProviderProps {
   children: ReactNode;
   onHeaderSelect?: (idx: number) => void;
   onRowSelect?: (row: number, col: number) => void;   // fallback if no rowAction registered
+  disabled?: boolean;
 }
 
-export const TVNavProvider = ({ children, onHeaderSelect, onRowSelect }: TVNavProviderProps) => {
+export const TVNavProvider = ({ children, onHeaderSelect, onRowSelect, disabled = false }: TVNavProviderProps) => {
   const [isTV, setIsTV] = useState(() => {
     try { return localStorage.getItem("tv-mode") === "1"; } catch { return false; }
   });
@@ -78,6 +79,8 @@ export const TVNavProvider = ({ children, onHeaderSelect, onRowSelect }: TVNavPr
   );
 
   useEffect(() => {
+    if (disabled) return;
+
     const handleKey = (e: KeyboardEvent) => {
       const isArrow = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key);
 
@@ -165,7 +168,7 @@ export const TVNavProvider = ({ children, onHeaderSelect, onRowSelect }: TVNavPr
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [zone, headerCol, focusedRow, focusedCol, onHeaderSelect, onRowSelect, sortedRows]);
+  }, [zone, headerCol, focusedRow, focusedCol, onHeaderSelect, onRowSelect, sortedRows, disabled]);
 
   return (
     <TVNavContext.Provider value={{

@@ -41,6 +41,15 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const location = useLocation();
   const { user, profile } = useAuth();
   const showShell = Boolean(user && hasAppAccess(profile));
+  const isTVMode = (() => {
+    try {
+      if (localStorage.getItem("tv-mode") === "1") return true;
+    } catch {}
+    const ua = navigator.userAgent.toLowerCase();
+    return ua.includes("tv") || ua.includes("smart-tv");
+  })();
+  const isTVHomeRoute = isTVMode && location.pathname === "/";
+  const showStandardShell = showShell && !isTVHomeRoute;
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -122,11 +131,12 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   return (
     <LayoutContext.Provider value={{ setSelectedItem, setPlayer, setSearchOpen, setAuthOpen, registerTVContent, getTVItem }}>
       <TVNavProvider
+        disabled={isTVHomeRoute}
         onHeaderSelect={handleHeaderSelect}
         onRowSelect={handleRowSelect}
       >
         <div className="min-h-screen bg-background text-white font-sans overflow-x-hidden">
-          {showShell && (
+          {showStandardShell && (
             <Header
               onSearch={() => {}}
               onNavChange={() => {}}
@@ -138,7 +148,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
           <main>{children}</main>
 
-          {showShell && (
+          {showStandardShell && (
             <MobileNavBar
               activeNav={activeNav}
               onNavChange={() => {}}
@@ -167,7 +177,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             />
           )}
 
-          {showShell && (
+          {showStandardShell && (
             <SearchOverlay
               open={searchOpen}
               onClose={() => setSearchOpen(false)}

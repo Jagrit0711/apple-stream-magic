@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { loginWithZuup } from "@/lib/zuupAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthModalProps {
   open: boolean;
@@ -18,6 +19,72 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pairCode, setPairCode] = useState("");
+  const [pairStatus, setPairStatus] = useState("");
+  const pairingChannelRef = useRef<any>(null);
+
+  const isTVLike = (() => {
+    const ua = navigator.userAgent.toLowerCase();
+    const isMobileUA = /iphone|ipad|android.*mobile|mobile/i.test(ua);
+    const isTvUA = ua.includes("tv") || ua.includes("smart-tv");
+    try {
+      if (localStorage.getItem("tv-mode") === "1") return true;
+    } catch {}
+    return isTvUA || !isMobileUA;
+  })();
+
+  useEffect(() => {
+    const closeChannel = async () => {
+      if (!pairingChannelRef.current) return;
+      await supabase.removeChannel(pairingChannelRef.current);
+      pairingChannelRef.current = null;
+    };
+
+    if (!open || mode !== "login" || !isTVLike) {
+      void closeChannel();
+      return;
+    }
+
+    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+    setPairCode(code);
+    setPairStatus("Waiting for mobile approval...");
+
+    const ch = supabase.channel(`pair-auth-${code}`);
+    pairingChannelRef.current = ch;
+
+    ch.on("broadcast", { event: "session-transfer" }, async ({ payload }: any) => {
+      try {
+        if (payload?.kind === "supabase" && payload?.access_token && payload?.refresh_token) {
+          const { error } = await supabase.auth.setSession({
+            access_token: payload.access_token,
+            refresh_token: payload.refresh_token,
+          });
+          if (error) throw error;
+          setPairStatus("Signed in. Redirecting...");
+          onClose();
+          return;
+        }
+
+        if (payload?.kind === "zuup" && payload?.session) {
+          localStorage.setItem("zuup_local_session", JSON.stringify(payload.session));
+          window.dispatchEvent(new CustomEvent("zuup-auth-updated", { detail: payload.session }));
+          setPairStatus("Signed in. Redirecting...");
+          onClose();
+          return;
+        }
+      } catch (error: any) {
+        setPairStatus(error?.message || "Pairing failed");
+      }
+    }).subscribe((status: string) => {
+      if (status === "CHANNEL_ERROR") {
+        setPairStatus("Pairing channel error");
+      }
+    });
+
+    return () => {
+      void closeChannel();
+    };
+  }, [open, mode, onClose, isTVLike]);
   const isTVMode = (() => {
     try {
       if (localStorage.getItem("tv-mode") === "1") return true;
@@ -141,6 +208,20 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
                 />
                 Login with Zuup
               </button>
+
+              {mode === "login" && isTVLike && pairCode && (
+                <div className="mt-2 rounded-xl border border-white/15 bg-white/[0.03] p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-meta mb-2">Scan To Sign In</p>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(`${window.location.origin}/profile?pair=${pairCode}`)}`}
+                    alt="Sign in QR"
+                    className="mx-auto rounded-lg border border-white/10 bg-white p-1"
+                    loading="lazy"
+                  />
+                  <p className="mt-2 text-xs text-white/80">Code: {pairCode}</p>
+                  <p className="mt-1 text-[11px] text-meta">{pairStatus}</p>
+                </div>
+              )}
             </form>
 
             <p className="text-center text-meta text-xs mt-5">
