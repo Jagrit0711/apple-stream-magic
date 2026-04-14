@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Android build tool caches (not source)
+.android-sdk/
+.local/
