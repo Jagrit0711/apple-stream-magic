@@ -8,6 +8,7 @@ import { useWatchHistory } from "@/hooks/useWatchHistory";
 import { useState } from "react";
 import { Filter } from "lucide-react";
 import { useLayout } from "@/components/MainLayout";
+import TVLayout from "@/components/TVLayout";
 
 const Movies = () => {
   const { setSelectedItem, setPlayer } = useLayout();
@@ -27,6 +28,11 @@ const Movies = () => {
   });
 
   const movies = moviesData?.results || [];
+  const isTVMode = (() => {
+    try { if (localStorage.getItem("tv-mode") === "1") return true; } catch {}
+    const ua = navigator.userAgent.toLowerCase();
+    return ua.includes("tv") || ua.includes("smart-tv");
+  })();
 
   const handleSelect = (item: any) => setSelectedItem(item);
   const handlePlay = (item: any) => {
@@ -47,6 +53,25 @@ const Movies = () => {
         { title: "Top Rated", items: topRatedMovies },
         { title: "Upcoming", items: upcoming },
       ];
+
+  if (isTVMode) {
+    const tvShelves = [
+      { title: "Now Playing", items: nowPlaying.slice(0, 18) },
+      { title: "Popular Movies", items: movies.slice(0, 18) },
+      { title: "Top Rated", items: topRatedMovies.slice(0, 18) },
+      { title: "Upcoming", items: upcoming.slice(0, 18) },
+    ].filter((shelf) => shelf.items.length > 0);
+
+    return (
+      <TVLayout
+        trending={nowPlaying.length > 0 ? nowPlaying : movies}
+        shelves={tvShelves}
+        continueWatching={movieContinue}
+        onSelect={handleSelect}
+        onPlay={handlePlay}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">

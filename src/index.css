@@ -230,3 +230,30 @@ html {
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
+
+/* TV performance mode: reduce expensive GPU effects and motion */
+body.tv-mode .glass,
+body.tv-mode .glass-strong {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body.tv-mode .accent-glow,
+body.tv-mode .card-glow {
+  box-shadow: none !important;
+}
+
+body.tv-mode .content-card,
+body.tv-mode .glass-hover,
+body.tv-mode * {
+  transition-duration: 120ms !important;
+}
+
+body.tv-mode .shimmer,
+body.tv-mode .animate-pulse-glow {
+  animation: none !important;
+}
+
+body.tv-mode img {
+  image-rendering: auto;
+}

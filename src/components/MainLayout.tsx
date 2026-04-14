@@ -41,15 +41,34 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const location = useLocation();
   const { user, profile } = useAuth();
   const showShell = Boolean(user && hasAppAccess(profile));
-  const isTVMode = (() => {
+  const [isTVMode, setIsTVMode] = useState(() => {
     try {
       if (localStorage.getItem("tv-mode") === "1") return true;
     } catch {}
     const ua = navigator.userAgent.toLowerCase();
     return ua.includes("tv") || ua.includes("smart-tv");
-  })();
-  const isTVHomeRoute = isTVMode && location.pathname === "/";
-  const showStandardShell = showShell && !isTVHomeRoute;
+  });
+  const showStandardShell = showShell && !isTVMode;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        setIsTVMode(true);
+        try {
+          localStorage.setItem("tv-mode", "1");
+        } catch {}
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("tv-mode", isTVMode);
+    return () => {
+      document.body.classList.remove("tv-mode");
+    };
+  }, [isTVMode]);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -131,7 +150,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   return (
     <LayoutContext.Provider value={{ setSelectedItem, setPlayer, setSearchOpen, setAuthOpen, registerTVContent, getTVItem }}>
       <TVNavProvider
-        disabled={isTVHomeRoute}
+        disabled={isTVMode}
         onHeaderSelect={handleHeaderSelect}
         onRowSelect={handleRowSelect}
       >

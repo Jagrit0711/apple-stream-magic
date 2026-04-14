@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Home, Film, Tv2, Search, User, Play, Info,
   Star, Clock, Flame, ChevronRight, X, ArrowRight
@@ -241,13 +242,14 @@ function TVHero({ items, onPlay, onSelect }: { items: TMDBMovie[]; onPlay: (i: T
 
 // ── D-Pad Navigable Shelf Row ──────────────────────────────────────────────
 function TVShelfRow({
-  title, items, isFocusedRow, onRequestFocus, onSelect,
+  title, items, isFocusedRow, onRequestFocus, onSelect, rowIndex,
 }: {
   title: string;
   items: TMDBMovie[];
   isFocusedRow: boolean;
   onRequestFocus: () => void;
   onSelect: (item: TMDBMovie) => void;
+  rowIndex: number;
 }) {
   const [focusIdx, setFocusIdx] = useState(0);
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -272,10 +274,10 @@ function TVShelfRow({
 
   return (
     <motion.section
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.4 }}
+      data-tv-row={rowIndex}
+      initial={false}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0 }}
       className="mb-8"
     >
       <div className="flex items-center justify-between mb-3 px-1">
@@ -351,13 +353,38 @@ function TVShelfRow({
 
 // ── Main TV Home Layout ────────────────────────────────────────────────────
 const TVLayout = ({ trending, shelves, continueWatching = [], onPlay, onSelect }: TVLayoutProps) => {
+  const navigate = useNavigate();
   const [navOpen, setNavOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("home");
   const [navIdx, setNavIdx] = useState(0);
-  const [focusedRow, setFocusedRow] = useState(0);
+  const [focusedRow, setFocusedRow] = useState(-1);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const allRows = shelves.filter(s => s.items.length > 0);
+
+  const applyNav = useCallback((navId: string) => {
+    if (navId === "search") {
+      setSearchOpen(true);
+      return;
+    }
+
+    if (navId === "home") navigate("/");
+    if (navId === "movies") navigate("/movies");
+    if (navId === "tv") navigate("/tv");
+    if (navId === "profile") navigate("/profile");
+  }, [navigate]);
+
+  useEffect(() => {
+    if (focusedRow === -1) {
+      const heroBtn = document.getElementById("tv-hero-play") as HTMLButtonElement | null;
+      heroBtn?.focus();
+      heroBtn?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    const rowEl = document.querySelector(`[data-tv-row="${focusedRow}"]`) as HTMLElement | null;
+    rowEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focusedRow]);
 
   // Global keyboard navigation
   useEffect(() => {
@@ -380,19 +407,24 @@ const TVLayout = ({ trending, shelves, continueWatching = [], onPlay, onSelect }
           const nav = NAV_ITEMS[navIdx];
           setActiveNav(nav.id);
           setNavOpen(false);
-          if (nav.id === "search") setSearchOpen(true);
+          applyNav(nav.id);
         }
         if (e.key === "Escape") setNavOpen(false);
         return;
       }
       // Content row navigation
       if (e.key === "ArrowDown") { e.preventDefault(); setFocusedRow(r => Math.min(r + 1, allRows.length - 1)); }
-      if (e.key === "ArrowUp")   { e.preventDefault(); setFocusedRow(r => Math.max(r - 1, 0)); }
+      if (e.key === "ArrowUp")   { e.preventDefault(); setFocusedRow(r => Math.max(r - 1, -1)); }
+
+      if (e.key === "Enter" && focusedRow === -1 && trending[0]) {
+        e.preventDefault();
+        onPlay(trending[0]);
+      }
     };
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [navOpen, navIdx, focusedRow, allRows.length, searchOpen]);
+  }, [navOpen, navIdx, focusedRow, allRows.length, searchOpen, applyNav, trending, onPlay]);
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans">
@@ -405,8 +437,18 @@ const TVLayout = ({ trending, shelves, continueWatching = [], onPlay, onSelect }
       >
         {/* Logo mark */}
         <div className="px-4 mb-10">
-          <div className="w-9 h-9 bg-accent rounded-xl flex items-center justify-center font-black text-accent-foreground text-base shrink-0 accent-glow">
-            W
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-9 h-9 bg-accent rounded-xl flex items-center justify-center font-black text-accent-foreground text-base shrink-0 accent-glow">
+              W
+            </div>
+            <motion.div
+              animate={{ opacity: navOpen ? 1 : 0, x: navOpen ? 0 : -8 }}
+              transition={{ duration: 0.15 }}
+              className="min-w-0"
+            >
+              <p className="text-sm font-black tracking-tight leading-none">Watch</p>
+              <p className="text-[9px] uppercase tracking-[0.22em] text-meta mt-1">by zuup</p>
+            </motion.div>
           </div>
         </div>
 
@@ -419,7 +461,7 @@ const TVLayout = ({ trending, shelves, continueWatching = [], onPlay, onSelect }
             return (
               <button
                 key={nav.id}
-                onClick={() => { setNavIdx(i); setActiveNav(nav.id); setNavOpen(false); if (nav.id === "search") setSearchOpen(true); }}
+                onClick={() => { setNavIdx(i); setActiveNav(nav.id); setNavOpen(false); applyNav(nav.id); }}
                 className={`
                   flex items-center gap-3.5 px-3 py-3 rounded-xl font-semibold transition-all duration-200 outline-none text-left whitespace-nowrap w-full
                   ${isFocused ? "bg-accent text-accent-foreground accent-glow scale-[1.02]" : ""}
@@ -504,6 +546,7 @@ const TVLayout = ({ trending, shelves, continueWatching = [], onPlay, onSelect }
             {allRows.map((shelf, i) => (
               <TVShelfRow
                 key={shelf.title}
+                rowIndex={i}
                 title={shelf.title}
                 items={shelf.items}
                 isFocusedRow={!navOpen && focusedRow === i}

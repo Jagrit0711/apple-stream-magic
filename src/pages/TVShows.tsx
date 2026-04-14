@@ -8,6 +8,7 @@ import { useWatchHistory } from "@/hooks/useWatchHistory";
 import { useState } from "react";
 import { Filter } from "lucide-react";
 import { useLayout } from "@/components/MainLayout";
+import TVLayout from "@/components/TVLayout";
 
 const TVShows = () => {
   const { setSelectedItem, setPlayer } = useLayout();
@@ -27,6 +28,11 @@ const TVShows = () => {
   });
 
   const tvShows = tvData?.results || [];
+  const isTVMode = (() => {
+    try { if (localStorage.getItem("tv-mode") === "1") return true; } catch {}
+    const ua = navigator.userAgent.toLowerCase();
+    return ua.includes("tv") || ua.includes("smart-tv");
+  })();
 
   const handleSelect = (item: any) => setSelectedItem(item);
   const handlePlay = (item: any) => {
@@ -53,6 +59,25 @@ const TVShows = () => {
         { title: "Top Rated TV", items: tvShows },
         { title: "On The Air", items: onTheAir },
       ];
+
+  if (isTVMode) {
+    const tvShelves = [
+      { title: "Airing Today", items: airingToday.slice(0, 18) },
+      { title: "Popular TV", items: popularTV.slice(0, 18) },
+      { title: "Top Rated TV", items: tvShows.slice(0, 18) },
+      { title: "On The Air", items: onTheAir.slice(0, 18) },
+    ].filter((shelf) => shelf.items.length > 0);
+
+    return (
+      <TVLayout
+        trending={popularTV.length > 0 ? popularTV : tvShows}
+        shelves={tvShelves}
+        continueWatching={tvContinue}
+        onSelect={handleSelect}
+        onPlay={handlePlay}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">
