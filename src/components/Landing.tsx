@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -80,6 +80,9 @@ const Landing = ({
   hasAccount = false,
   tvMode = false,
 }: LandingProps) => {
+  const [tvActionIndex, setTvActionIndex] = useState(0);
+  const tvActionRefs = useRef<(HTMLElement | null)[]>([]);
+
   const firstName = userName?.split("@")[0]?.split(" ")[0] || "Viewer";
 
   const posters = useMemo(
@@ -99,6 +102,47 @@ const Landing = ({
 
   const heroTitleMain = hasAccount && accessLocked ? `Welcome Back, ${firstName}.` : "Movies.";
   const heroTitleAccent = hasAccount && accessLocked ? "Renew. Resume. Dominate." : "Zero limits.";
+
+  useEffect(() => {
+    if (!tvMode) return;
+
+    const focusCurrent = () => {
+      tvActionRefs.current[tvActionIndex]?.focus();
+    };
+
+    focusCurrent();
+
+    const onKey = (e: KeyboardEvent) => {
+      const isInput = ["INPUT", "TEXTAREA"].includes((document.activeElement as HTMLElement | null)?.tagName || "");
+      if (isInput) return;
+
+      const total = tvActionRefs.current.filter(Boolean).length;
+      if (total === 0) return;
+
+      if (["ArrowRight", "ArrowDown"].includes(e.key)) {
+        e.preventDefault();
+        setTvActionIndex((i) => (i + 1) % total);
+      }
+
+      if (["ArrowLeft", "ArrowUp"].includes(e.key)) {
+        e.preventDefault();
+        setTvActionIndex((i) => (i - 1 + total) % total);
+      }
+
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        tvActionRefs.current[tvActionIndex]?.click();
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tvMode, tvActionIndex]);
+
+  useEffect(() => {
+    if (!tvMode) return;
+    tvActionRefs.current[tvActionIndex]?.focus();
+  }, [tvMode, tvActionIndex]);
 
   if (tvMode) {
     return (
@@ -154,8 +198,9 @@ const Landing = ({
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             {!hasAccount && (
               <button
+                ref={(el) => { tvActionRefs.current[0] = el; }}
                 onClick={onAuthClick}
-                className="inline-flex items-center gap-2 rounded-full bg-[#f40f63] px-10 py-4 text-base font-black"
+                className={`inline-flex items-center gap-2 rounded-full bg-[#f40f63] px-10 py-4 text-base font-black outline-none ${tvActionIndex === 0 ? "ring-2 ring-white ring-offset-2 ring-offset-background" : ""}`}
               >
                 Get Started
                 <ArrowRight size={16} />
@@ -163,12 +208,15 @@ const Landing = ({
             )}
 
             <button
+              ref={(el) => { tvActionRefs.current[hasAccount ? 0 : 1] = el; }}
               onClick={onAuthClick}
-              className="rounded-full border border-white/25 bg-white/[0.06] px-8 py-4 text-base font-black text-white"
+              className={`rounded-full border border-white/25 bg-white/[0.06] px-8 py-4 text-base font-black text-white outline-none ${(hasAccount ? tvActionIndex === 0 : tvActionIndex === 1) ? "ring-2 ring-white ring-offset-2 ring-offset-background" : ""}`}
             >
               {hasAccount ? "Switch Account" : "I already have an account"}
             </button>
           </div>
+
+          <p className="mt-4 text-xs text-white/55">TV Remote: OK button = Enter key on laptop</p>
 
           <div className="mt-10 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-white/12 bg-black/35 px-4 py-3">
