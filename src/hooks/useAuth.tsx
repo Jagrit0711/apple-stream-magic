@@ -313,10 +313,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    await supabase
+    const payload = { onboarding_complete: true, favorite_genres: genres };
+
+    const { error, data } = await supabase
       .from("apple_profiles" as any)
-      .update({ onboarding_complete: true, favorite_genres: genres })
-      .eq("user_id", user.id);
+      .update(payload)
+      .eq("user_id", user.id)
+      .select("user_id")
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    // If update matched no rows (race on fresh signup), create profile then continue.
+    if (!data) {
+      const { error: upsertError } = await supabase
+        .from("apple_profiles" as any)
+        .upsert(
+          {
+            user_id: user.id,
+            display_name:
+              (user.user_metadata as any)?.display_name ||
+              user.email?.split("@")[0] ||
+              "User",
+            ...payload,
+          },
+          { onConflict: "user_id" }
+        );
+
+      if (upsertError) {
+        throw upsertError;
+      }
+    }
+
     setProfile(p => p ? { ...p, onboarding_complete: true, favorite_genres: genres } : p);
   };
 

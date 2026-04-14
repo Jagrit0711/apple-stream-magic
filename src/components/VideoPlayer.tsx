@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Loader2, Play, X, Tv2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMovieDetail, fetchTVDetail, fetchTVSeasonEpisodes, img } from "@/lib/tmdb";
+import { useWatchHistory } from "@/hooks/useWatchHistory";
 
 interface VideoPlayerProps {
   contentId: number | null;
@@ -33,6 +34,7 @@ const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose 
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdown, setCountdown] = useState(10);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { trackWatch } = useWatchHistory();
 
   // TV detection — also triggers when user uses arrow keys (TV remote)
   useEffect(() => {
@@ -119,6 +121,35 @@ const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose 
   });
 
   const allSeasons = (detail as any)?.seasons?.filter((s: any) => s.season_number > 0) ?? [];
+
+  // Bootstrap a history row when playback starts or episode changes.
+  useEffect(() => {
+    if (!contentId || !detail) return;
+
+    trackWatch(
+      {
+        id: contentId,
+        title: (detail as any).title || "",
+        name: (detail as any).name,
+        overview: (detail as any).overview || "",
+        poster_path: (detail as any).poster_path || null,
+        backdrop_path: (detail as any).backdrop_path || null,
+        release_date: (detail as any).release_date,
+        first_air_date: (detail as any).first_air_date,
+        vote_average: Number((detail as any).vote_average || 0),
+        genre_ids: Array.isArray((detail as any).genres)
+          ? (detail as any).genres.map((g: any) => Number(g.id)).filter((v: number) => !Number.isNaN(v))
+          : [],
+        media_type: type,
+      },
+      1,
+      null,
+      type === "tv" ? playingSeason : undefined,
+      type === "tv" ? playingEpisode : undefined,
+      resumeSeconds ?? null,
+      null,
+    );
+  }, [contentId, detail, type, playingSeason, playingEpisode, resumeSeconds, trackWatch]);
 
   // Auto next-episode countdown
   useEffect(() => {

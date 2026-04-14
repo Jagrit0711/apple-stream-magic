@@ -8,6 +8,8 @@ const Onboarding = () => {
   const { profile, completeOnboarding } = useAuth();
   const [step, setStep] = useState(0);
   const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   if (!profile || profile.onboarding_complete) return null;
 
@@ -15,7 +17,18 @@ const Onboarding = () => {
     setSelectedGenres(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
   };
 
-  const handleFinish = () => completeOnboarding(selectedGenres);
+  const handleFinish = async () => {
+    if (saving) return;
+    setSaveError(null);
+    setSaving(true);
+    try {
+      await completeOnboarding(selectedGenres);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Failed to save onboarding");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const steps = [
     {
@@ -94,17 +107,19 @@ const Onboarding = () => {
             <button onClick={() => setStep(step - 1)} className="px-6 py-3 rounded-full text-sm text-meta hover:text-foreground transition-colors">Back</button>
           )}
           <button
-            onClick={step < steps.length - 1 ? () => setStep(step + 1) : handleFinish}
+            onClick={step < steps.length - 1 ? () => setStep(step + 1) : () => { void handleFinish(); }}
+            disabled={saving}
             className="flex items-center gap-2 px-8 py-3 bg-accent text-accent-foreground rounded-full font-semibold text-sm hover:bg-accent/90 transition-all accent-glow"
           >
-            {step === 0 ? "Get Started" : step < steps.length - 1 ? "Continue" : "Start Watching"}
+            {saving ? "Saving..." : step === 0 ? "Get Started" : step < steps.length - 1 ? "Continue" : "Start Watching"}
             <ChevronRight size={14} />
           </button>
         </div>
 
         {step === 0 && (
-          <button onClick={handleFinish} className="mt-4 text-meta text-xs hover:text-foreground transition-colors">Skip</button>
+          <button onClick={() => { void handleFinish(); }} disabled={saving} className="mt-4 text-meta text-xs hover:text-foreground transition-colors">Skip</button>
         )}
+        {saveError && <p className="mt-3 text-xs text-red-400">{saveError}</p>}
       </div>
     </motion.div>
   );

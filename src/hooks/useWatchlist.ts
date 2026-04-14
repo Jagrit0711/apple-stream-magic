@@ -26,6 +26,35 @@ export const useWatchlist = () => {
   const isZuupUser = (user as any)?.app_metadata?.provider === "zuup";
   const actorUserId = profile?.user_id || user?.id || null;
 
+  const upsertContentRow = async (payload: Record<string, any>) => {
+    const primary = await supabase
+      .from("apple_user_content" as any)
+      .upsert(payload, { onConflict: "user_id,tmdb_id,media_type" });
+    if (!primary.error) return;
+
+    const missingRelation = /relation .* does not exist/i.test(primary.error.message || "");
+    if (!missingRelation) throw primary.error;
+
+    const legacyPayload = {
+      user_id: payload.user_id,
+      tmdb_id: payload.tmdb_id,
+      media_type: payload.media_type,
+      title: payload.title,
+      poster_path: payload.poster_path,
+      backdrop_path: payload.backdrop_path,
+      progress: payload.progress ?? 0,
+      duration: payload.duration ?? null,
+      season: payload.season ?? null,
+      episode: payload.episode ?? null,
+      last_watched_at: payload.last_watched_at ?? new Date().toISOString(),
+    };
+
+    const fallback = await supabase
+      .from("watch_history" as any)
+      .upsert(legacyPayload, { onConflict: "user_id,tmdb_id,media_type" });
+    if (fallback.error) throw fallback.error;
+  };
+
   const { data: watchlist = [], isLoading: loading } = useQuery({
     queryKey: ["watchlist", actorUserId, isZuupUser],
     queryFn: async () => {
@@ -46,8 +75,13 @@ export const useWatchlist = () => {
         .eq("in_watchlist", true)
         .order("added_to_watchlist_at", { ascending: false });
 
-      if (error) throw error;
-      return (data || []) as any as WatchlistItem[];
+      if (!error) return (data || []) as any as WatchlistItem[];
+
+      const missingRelation = /relation .* does not exist/i.test(error.message || "");
+      if (!missingRelation) throw error;
+
+      // Legacy table has no watchlist columns, so return empty set instead of hard-failing.
+      return [] as WatchlistItem[];
     },
     enabled: !!actorUserId,
   });
@@ -77,13 +111,12 @@ export const useWatchlist = () => {
         return;
       }
       
-      const { error } = await supabase.from("apple_user_content" as any).upsert({
+      await upsertContentRow({
         user_id: actorUserId,
         ...item,
         in_watchlist: true,
-        added_to_watchlist_at: new Date().toISOString()
-      }, { onConflict: "user_id,tmdb_id,media_type" });
-      if (error) throw error;
+        added_to_watchlist_at: new Date().toISOString(),
+      });
     },
     onSuccess: () => {
       toast.success("Added to watchlist");
@@ -121,7 +154,15 @@ export const useWatchlist = () => {
         .update({ in_watchlist: false })
         .eq("user_id", actorUserId)
         .eq("tmdb_id", tmdb_id);
-      if (error) throw error;
+
+      if (!error) return;
+
+      const missingRelation = /relation .* does not exist/i.test(error.message || "");
+      if (missingRelation) {
+        // Legacy schema doesn't support watchlist state.
+        return;
+      }
+      throw error;
     },
     onSuccess: () => {
       toast.success("Removed from watchlist");

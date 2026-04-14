@@ -28,6 +28,37 @@ export const useWatchHistory = () => {
   const isZuupUser = (user as any)?.app_metadata?.provider === "zuup";
   const actorUserId = profile?.user_id || user?.id || null;
 
+  const writeContentRow = async (payload: Record<string, any>) => {
+    const primary = await supabase
+      .from("apple_user_content" as any)
+      .upsert(payload, { onConflict: "user_id,tmdb_id,media_type" });
+
+    if (!primary.error) return;
+
+    const missingRelation = /relation .* does not exist/i.test(primary.error.message || "");
+    if (!missingRelation) throw primary.error;
+
+    const legacyPayload = {
+      user_id: payload.user_id,
+      tmdb_id: payload.tmdb_id,
+      media_type: payload.media_type,
+      title: payload.title,
+      poster_path: payload.poster_path,
+      backdrop_path: payload.backdrop_path,
+      progress: payload.progress,
+      duration: payload.duration,
+      season: payload.season,
+      episode: payload.episode,
+      last_watched_at: payload.last_watched_at,
+    };
+
+    const fallback = await supabase
+      .from("watch_history" as any)
+      .upsert(legacyPayload, { onConflict: "user_id,tmdb_id,media_type" });
+
+    if (fallback.error) throw fallback.error;
+  };
+
   const { data: history = [] } = useQuery({
     queryKey: ["watch-history", actorUserId, isZuupUser],
     queryFn: async () => {
@@ -41,13 +72,33 @@ export const useWatchHistory = () => {
         return (Array.isArray(parsed) ? parsed : []) as WatchHistoryItem[];
       }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("apple_user_content" as any)
         .select("*")
         .eq("user_id", actorUserId)
         .order("last_watched_at", { ascending: false })
         .limit(20);
-      return (data || []) as any as WatchHistoryItem[];
+
+      if (!error) return (data || []) as any as WatchHistoryItem[];
+
+      const missingRelation = /relation .* does not exist/i.test(error.message || "");
+      if (!missingRelation) throw error;
+
+      const { data: legacyData, error: legacyError } = await supabase
+        .from("watch_history" as any)
+        .select("*")
+        .eq("user_id", actorUserId)
+        .order("last_watched_at", { ascending: false })
+        .limit(20);
+
+      if (legacyError) throw legacyError;
+      return (legacyData || []).map((row: any) => ({
+        ...row,
+        in_watchlist: false,
+        added_to_watchlist_at: null,
+        position_seconds: null,
+        duration_seconds: null,
+      })) as WatchHistoryItem[];
     },
     enabled: !!actorUserId,
   });
@@ -102,16 +153,15 @@ export const useWatchHistory = () => {
         });
         if (!res.ok) {
           const text = await res.text();
-          console.error("Watch history upsert error:", text);
+          throw new Error(text || "Watch history upsert failed");
         }
         return;
       }
 
-      const { error } = await supabase
-        .from("apple_user_content" as any)
-        .upsert(payload, { onConflict: "user_id,tmdb_id,media_type" });
-
-      if (error) console.error("Watch history upsert error:", error);
+      await writeContentRow(payload);
+    },
+    onError: (error) => {
+      console.error("Watch history upsert error:", error);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watch-history"] }),
   });

@@ -32,6 +32,7 @@ import Landing from "../components/Landing";
 import MobileCategories from "@/components/MobileCategories";
 import { useIsMobile } from "@/hooks/use-mobile";
 import TabletLayout from "@/components/TabletLayout";
+import TVLayout from "@/components/TVLayout";
 import { SkeletonShelf, SkeletonHero } from "@/components/Skeletons";
 import { useLayout } from "@/components/MainLayout";
 import { hasAppAccess } from "@/lib/access";
@@ -68,28 +69,29 @@ const Index = () => {
   }, []);
 
   const { setSelectedItem, setPlayer, setAuthOpen } = useLayout();
+  const isTVHome = isTVMode && !isTablet;
   
   const { data: trending = [] as TMDBMovie[] } = useQuery({ queryKey: ["trending-week"], queryFn: fetchTrendingWeek });
   const { data: trendingDay = [] as TMDBMovie[] } = useQuery({ queryKey: ["trending-day"], queryFn: fetchTrendingDay });
   const { data: moviesData } = useQuery({ queryKey: ["popular-movies"], queryFn: () => fetchPopularMovies() });
   const { data: tvData } = useQuery({ queryKey: ["top-tv"], queryFn: () => fetchTopRatedTV() });
-  const { data: animeData } = useQuery({ queryKey: ["popular-anime"], queryFn: () => fetchPopularAnime() });
-  const { data: nowPlaying = [] as TMDBMovie[] } = useQuery({ queryKey: ["now-playing"], queryFn: fetchNowPlayingMovies });
-  const { data: upcoming = [] as TMDBMovie[] } = useQuery({ queryKey: ["upcoming"], queryFn: fetchUpcomingMovies });
-  const { data: topRatedMovies = [] as TMDBMovie[] } = useQuery({ queryKey: ["top-rated-movies"], queryFn: fetchTopRatedMovies });
-  const { data: airingToday = [] as TMDBMovie[] } = useQuery({ queryKey: ["airing-today"], queryFn: fetchAiringTodayTV });
+  const { data: animeData } = useQuery({ queryKey: ["popular-anime"], queryFn: () => fetchPopularAnime(), enabled: !isTVHome });
+  const { data: nowPlaying = [] as TMDBMovie[] } = useQuery({ queryKey: ["now-playing"], queryFn: fetchNowPlayingMovies, enabled: !isTVHome });
+  const { data: upcoming = [] as TMDBMovie[] } = useQuery({ queryKey: ["upcoming"], queryFn: fetchUpcomingMovies, enabled: !isTVHome });
+  const { data: topRatedMovies = [] as TMDBMovie[] } = useQuery({ queryKey: ["top-rated-movies"], queryFn: fetchTopRatedMovies, enabled: !isTVHome });
+  const { data: airingToday = [] as TMDBMovie[] } = useQuery({ queryKey: ["airing-today"], queryFn: fetchAiringTodayTV, enabled: !isTVHome });
   const { data: popularTV = [] as TMDBMovie[] } = useQuery({ queryKey: ["popular-tv"], queryFn: fetchPopularTV });
   
   // Diverse genre items
-  const { data: actionMovies = [] as TMDBMovie[] } = useQuery({ queryKey: ["genre-action"], queryFn: () => fetchMoviesByGenre(28) });
-  const { data: sciFiMovies = [] as TMDBMovie[] } = useQuery({ queryKey: ["genre-scifi"], queryFn: () => fetchMoviesByGenre(878) });
-  const { data: comedyTV = [] as TMDBMovie[] } = useQuery({ queryKey: ["genre-comedy-tv"], queryFn: () => fetchTVByGenre(35) });
-  const { data: familyMovies = [] as TMDBMovie[] } = useQuery({ queryKey: ["genre-family"], queryFn: () => fetchMoviesByGenre(10751) });
+  const { data: actionMovies = [] as TMDBMovie[] } = useQuery({ queryKey: ["genre-action"], queryFn: () => fetchMoviesByGenre(28), enabled: !isTVHome });
+  const { data: sciFiMovies = [] as TMDBMovie[] } = useQuery({ queryKey: ["genre-scifi"], queryFn: () => fetchMoviesByGenre(878), enabled: !isTVHome });
+  const { data: comedyTV = [] as TMDBMovie[] } = useQuery({ queryKey: ["genre-comedy-tv"], queryFn: () => fetchTVByGenre(35), enabled: !isTVHome });
+  const { data: familyMovies = [] as TMDBMovie[] } = useQuery({ queryKey: ["genre-family"], queryFn: () => fetchMoviesByGenre(10751), enabled: !isTVHome });
 
-  const { data: top10MoviesGlobal = [] } = useQuery({ queryKey: ["top10-movies-global"], queryFn: () => fetchTop10Global("movie") });
-  const { data: top10TVGlobal = [] } = useQuery({ queryKey: ["top10-tv-global"], queryFn: () => fetchTop10Global("tv") });
-  const { data: top10MoviesIN = [] } = useQuery({ queryKey: ["top10-movies-in"], queryFn: () => fetchTop10Region("movie", "IN") });
-  const { data: top10TVIN = [] } = useQuery({ queryKey: ["top10-tv-in"], queryFn: () => fetchTop10Region("tv", "IN") });
+  const { data: top10MoviesGlobal = [] } = useQuery({ queryKey: ["top10-movies-global"], queryFn: () => fetchTop10Global("movie"), enabled: !isTVHome });
+  const { data: top10TVGlobal = [] } = useQuery({ queryKey: ["top10-tv-global"], queryFn: () => fetchTop10Global("tv"), enabled: !isTVHome });
+  const { data: top10MoviesIN = [] } = useQuery({ queryKey: ["top10-movies-in"], queryFn: () => fetchTop10Region("movie", "IN"), enabled: !isTVHome });
+  const { data: top10TVIN = [] } = useQuery({ queryKey: ["top10-tv-in"], queryFn: () => fetchTop10Region("tv", "IN"), enabled: !isTVHome });
 
   const movies = moviesData?.results || [];
   const tvShows = tvData?.results || [];
@@ -170,6 +172,26 @@ const Index = () => {
     return s.filter(shelf => shelf.items && shelf.items.length > 0);
   }, [trending, trendingDay, movies, tvShows, anime, nowPlaying, upcoming, topRatedMovies, airingToday, popularTV, genreMovies1, genreMovies2, favoriteGenres, recommendations, personalizedShelves, actionMovies, sciFiMovies, comedyTV, familyMovies]);
 
+  const tvShelves = useMemo(
+    () => [
+      { title: "Continue Your Binge", items: continueWatching.map((i: any) => ({
+        id: i.tmdb_id,
+        title: i.title,
+        name: i.title,
+        overview: "",
+        poster_path: i.poster_path,
+        backdrop_path: i.backdrop_path,
+        vote_average: 0,
+        genre_ids: [],
+        media_type: i.media_type,
+      })) as TMDBMovie[] },
+      { title: "Popular Movies", items: movies.slice(0, 18) },
+      { title: "Popular TV", items: popularTV.slice(0, 18) },
+      { title: "Top Rated TV", items: tvShows.slice(0, 18) },
+    ].filter((row) => row.items.length > 0),
+    [continueWatching, movies, popularTV, tvShows]
+  );
+
   if (!user || !accessGranted) {
     return (
       <Landing
@@ -186,7 +208,15 @@ const Index = () => {
     <>
       {user && profile && !profile.onboarding_complete && <Onboarding />}
 
-      {isTablet ? (
+      {isTVHome ? (
+        <TVLayout
+          trending={trending}
+          shelves={tvShelves}
+          continueWatching={continueWatching}
+          onSelect={handleSelect}
+          onPlay={handlePlay}
+        />
+      ) : isTablet ? (
         <TabletLayout
           activeNav="Home"
           onNavChange={() => {}}

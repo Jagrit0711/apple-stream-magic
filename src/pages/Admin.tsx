@@ -53,8 +53,19 @@ const Admin = () => {
         .select("*")
         .order("last_watched_at", { ascending: false })
         .limit(250);
-      if (error) throw error;
-      return (data || []) as any[];
+
+      if (!error) return (data || []) as any[];
+
+      const missingRelation = /relation .* does not exist/i.test(error.message || "");
+      if (!missingRelation) throw error;
+
+      const { data: legacyData, error: legacyError } = await supabase
+        .from("watch_history" as any)
+        .select("*")
+        .order("last_watched_at", { ascending: false })
+        .limit(250);
+      if (legacyError) throw legacyError;
+      return (legacyData || []) as any[];
     },
   });
 
