@@ -24,6 +24,7 @@ interface LandingProps {
   accessLocked?: boolean;
   userName?: string;
   hasAccount?: boolean;
+  tvMode?: boolean;
 }
 
 const CAPABILITIES = [
@@ -77,6 +78,7 @@ const Landing = ({
   accessLocked = false,
   userName,
   hasAccount = false,
+  tvMode = false,
 }: LandingProps) => {
   const firstName = userName?.split("@")[0]?.split(" ")[0] || "Viewer";
 
@@ -97,6 +99,95 @@ const Landing = ({
 
   const heroTitleMain = hasAccount && accessLocked ? `Welcome Back, ${firstName}.` : "Movies.";
   const heroTitleAccent = hasAccount && accessLocked ? "Renew. Resume. Dominate." : "Zero limits.";
+
+  if (tvMode) {
+    return (
+      <div className="relative min-h-screen overflow-x-hidden bg-[#06060a] text-white">
+        <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,rgba(225,29,72,0.28),transparent_40%),linear-gradient(to_bottom,#06060a,#090b12)]" />
+
+        <header className="fixed left-0 right-0 top-0 z-40 border-b border-white/5 bg-black/65">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
+            <button onClick={onAuthClick} className="text-left">
+              <p className="text-[40px] font-black leading-none tracking-[-0.05em]">Watch</p>
+              <p className="mt-1 text-[11px] font-bold tracking-[0.35em] text-white/75">BY ZUUP</p>
+            </button>
+
+            {!hasAccount && (
+              <button
+                onClick={onAuthClick}
+                className="rounded-full bg-[#f40f63] px-6 py-3 text-sm font-black"
+              >
+                Login
+              </button>
+            )}
+
+            {hasAccount && accessLocked && (
+              <a
+                href={renewalLink}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full bg-[#25D366]/20 px-6 py-3 text-sm font-black text-[#25D366] ring-1 ring-[#25D366]/40"
+              >
+                Renew on WhatsApp
+              </a>
+            )}
+          </div>
+        </header>
+
+        <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center px-6 pt-32 pb-16 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold text-white/95">
+            <span className="h-2 w-2 rounded-full bg-[#ff145f]" />
+            TV Optimized Mode
+          </div>
+
+          <h1 className="mt-6 text-5xl font-black leading-[0.95] tracking-[-0.04em] sm:text-7xl">
+            {heroTitleMain}
+            <span className="mt-2 block bg-gradient-to-r from-[#ff1570] via-[#ff3f91] to-[#ffa34b] bg-clip-text text-transparent">
+              {heroTitleAccent}
+            </span>
+          </h1>
+
+          <p className="mt-6 max-w-3xl text-lg font-semibold leading-relaxed text-white/70">
+            Fast TV experience with simpler visuals for smooth remote navigation and quick login.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            {!hasAccount && (
+              <button
+                onClick={onAuthClick}
+                className="inline-flex items-center gap-2 rounded-full bg-[#f40f63] px-10 py-4 text-base font-black"
+              >
+                Get Started
+                <ArrowRight size={16} />
+              </button>
+            )}
+
+            <button
+              onClick={onAuthClick}
+              className="rounded-full border border-white/25 bg-white/[0.06] px-8 py-4 text-base font-black text-white"
+            >
+              {hasAccount ? "Switch Account" : "I already have an account"}
+            </button>
+          </div>
+
+          <div className="mt-10 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-white/12 bg-black/35 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">Plan</p>
+              <p className="mt-1 text-sm font-black">Rs. {SUBSCRIPTION_PRICE_RUPEES} membership</p>
+            </div>
+            <div className="rounded-xl border border-white/12 bg-black/35 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">Renewal</p>
+              <p className="mt-1 text-sm font-black">WhatsApp only</p>
+            </div>
+            <div className="rounded-xl border border-white/12 bg-black/35 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">Support Number</p>
+              <p className="mt-1 text-sm font-black">{hasAccount ? SUPPORT_WHATSAPP_NUMBER : "Login to view"}</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#06060a] text-white">

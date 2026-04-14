@@ -200,6 +200,7 @@ const Index = () => {
         accessLocked={Boolean(user && !accessGranted)}
         userName={profile?.display_name || user?.email || undefined}
         hasAccount={Boolean(user)}
+        tvMode={isTVMode}
       />
     );
   }

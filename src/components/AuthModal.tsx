@@ -18,6 +18,13 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const isTVMode = (() => {
+    try {
+      if (localStorage.getItem("tv-mode") === "1") return true;
+    } catch {}
+    const ua = navigator.userAgent.toLowerCase();
+    return ua.includes("tv") || ua.includes("smart-tv");
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,17 +59,17 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
       {open && (
         <motion.div
           className="fixed inset-0 z-[80] flex items-center justify-center"
-          initial={{ opacity: 0 }}
+          initial={{ opacity: isTVMode ? 1 : 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="fixed inset-0 bg-background/95 backdrop-blur-2xl" onClick={onClose} />
+          <div className={`fixed inset-0 ${isTVMode ? "bg-background/98" : "bg-background/95 backdrop-blur-2xl"}`} onClick={onClose} />
           <motion.div
-            className="relative z-10 w-full max-w-sm mx-4 glass-strong rounded-2xl p-8"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className={`relative z-10 w-full max-w-sm mx-4 rounded-2xl p-8 ${isTVMode ? "border border-white/15 bg-[#0c0c12]" : "glass-strong"}`}
+            initial={isTVMode ? { opacity: 1 } : { scale: 0.9, opacity: 0 }}
+            animate={isTVMode ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+            exit={isTVMode ? { opacity: 0 } : { scale: 0.9, opacity: 0 }}
+            transition={isTVMode ? { duration: 0.15 } : { duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           >
             <button onClick={onClose} className="absolute top-4 right-4 text-meta hover:text-foreground transition-colors">
               <X size={18} />
