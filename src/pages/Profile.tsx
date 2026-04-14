@@ -20,7 +20,6 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
   const [selectedGenres, setSelectedGenres] = useState<number[]>(profile?.favorite_genres || []);
-  const [pairCodeInput, setPairCodeInput] = useState("");
   const [pairStatus, setPairStatus] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -130,7 +129,6 @@ const Profile = () => {
               }
             })();
 
-            setPairCodeInput(parsed);
             setIsScanning(false);
             void approvePairingCode(parsed);
             return;
@@ -336,21 +334,9 @@ const Profile = () => {
 
         <section className="mb-12 rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-7">
           <h2 className="text-xl font-black uppercase tracking-widest">TV/Laptop Pair Sign-in</h2>
-          <p className="mt-2 text-sm text-meta/70">On TV/laptop login screen, open QR sign-in. Then scan it here or enter the code.</p>
+          <p className="mt-2 text-sm text-meta/70">On TV/laptop login screen, open QR sign-in and scan it here.</p>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <input
-              value={pairCodeInput}
-              onChange={(e) => setPairCodeInput(e.target.value.toUpperCase())}
-              placeholder="Enter pairing code"
-              className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-accent"
-            />
-            <button
-              onClick={() => { void approvePairingCode(pairCodeInput); }}
-              className="rounded-xl bg-accent px-5 py-3 text-xs font-black uppercase tracking-widest text-white"
-            >
-              Approve Sign-in
-            </button>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               onClick={() => setIsScanning((v) => !v)}
               className="rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-widest"

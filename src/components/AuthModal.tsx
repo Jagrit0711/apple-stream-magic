@@ -218,7 +218,6 @@ const AuthModal = ({ open, onClose }: AuthModalProps) => {
                     className="mx-auto rounded-lg border border-white/10 bg-white p-1"
                     loading="lazy"
                   />
-                  <p className="mt-2 text-xs text-white/80">Code: {pairCode}</p>
                   <p className="mt-1 text-[11px] text-meta">{pairStatus}</p>
                 </div>
               )}
