@@ -2,6 +2,13 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 import { SUPPORT_WHATSAPP_NUMBER, SUBSCRIPTION_PRICE_RUPEES } from "@/lib/access";
+import {
+  setSubscriptionCookies,
+  getSubscriptionFromCookies,
+  clearSubscriptionCookies,
+  updateSubscriptionCookie,
+  updateAdminCookie,
+} from "@/lib/cookieManager";
 
 const ZUUP_LOCAL_SESSION_KEY = "zuup_local_session";
 
@@ -85,28 +92,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const info = (zuupUser.user_metadata as any)?.zuup_userinfo || {};
     const linked = (zuupUser.user_metadata as any)?.zuup_linked_profile || {};
 
+    let profile: AuthContextType["profile"];
     if (linked && linked.user_id) {
-      return {
+      profile = {
         ...linked,
       } as AuthContextType["profile"];
+    } else {
+      const nowIso = new Date().toISOString();
+      profile = {
+        id: `zuup-${zuupUser.id}`,
+        user_id: zuupUser.id,
+        display_name: (zuupUser.user_metadata as any)?.display_name || null,
+        avatar_url: (zuupUser.user_metadata as any)?.avatar_url || null,
+        onboarding_complete: true,
+        favorite_genres: [],
+        is_admin: Boolean(info.is_admin),
+        subscription_status: (typeof info.subscription_status === "string" ? info.subscription_status : "active"),
+        subscription_expires_at: typeof info.subscription_expires_at === "string" ? info.subscription_expires_at : null,
+        renewal_whatsapp: SUPPORT_WHATSAPP_NUMBER,
+        plan_price: SUBSCRIPTION_PRICE_RUPEES,
+        created_at: nowIso,
+        updated_at: nowIso,
+      } as AuthContextType["profile"];
     }
-
-    const nowIso = new Date().toISOString();
-    return {
-      id: `zuup-${zuupUser.id}`,
-      user_id: zuupUser.id,
-      display_name: (zuupUser.user_metadata as any)?.display_name || null,
-      avatar_url: (zuupUser.user_metadata as any)?.avatar_url || null,
-      onboarding_complete: true,
-      favorite_genres: [],
-      is_admin: Boolean(info.is_admin),
-      subscription_status: (typeof info.subscription_status === "string" ? info.subscription_status : "active"),
-      subscription_expires_at: typeof info.subscription_expires_at === "string" ? info.subscription_expires_at : null,
-      renewal_whatsapp: SUPPORT_WHATSAPP_NUMBER,
-      plan_price: SUBSCRIPTION_PRICE_RUPEES,
-      created_at: nowIso,
-      updated_at: nowIso,
-    } as AuthContextType["profile"];
+    
+    // Store in cookies for dynamic checking on refresh
+    setSubscriptionCookies(profile);
+    return profile;
   };
 
   const tryApplyZuupSession = (sessionPayload?: ZuupLocalSession | null) => {
@@ -123,9 +135,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const zuupUser = mapZuupUser(payload);
     setSession(null);
     setUser(zuupUser);
-    setProfile(mapZuupProfile(zuupUser));
+    const zuupProfile = mapZuupProfile(zuupUser);
+    setProfile(zuupProfile);
     setLoading(false);
     return true;
+  };
+
+  /**
+   * Restore profile from cookies on page refresh
+   * Allows instant profile display without waiting for DB query
+   */
+  const restoreProfileFromCookies = () => {
+    const cachedProfile = getSubscriptionFromCookies();
+    if (cachedProfile) {
+      // Create a minimal profile object from cookies
+      // This will be validated/updated by the database query
+      const restoredProfile: AuthContextType["profile"] = {
+        ...cachedProfile,
+        user_id: "",
+        display_name: null,
+        avatar_url: null,
+        onboarding_complete: true,
+        favorite_genres: [],
+        created_at: "",
+        updated_at: "",
+      };
+      setProfile(restoredProfile);
+      return true;
+    }
+    return false;
   };
 
   const isZuupUser = (candidate: User | null) =>
@@ -141,7 +179,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
       if (data) {
-        setProfile(data as any as AuthContextType["profile"]);
+        const profileData = data as any as AuthContextType["profile"];
+        setProfile(profileData);
+        // Store subscription status in cookies for dynamic refresh checking
+        setSubscriptionCookies(profileData);
         return;
       }
 
@@ -191,12 +232,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        // Try to restore from cookies first for instant profile availability
+        restoreProfileFromCookies();
+        // Then fetch fresh data from database
         setLoading(true);
         setTimeout(() => {
           fetchProfile(session.user).finally(() => setLoading(false));
         }, 0);
       } else {
         setProfile(null);
+        clearSubscriptionCookies();
         setLoading(false);
       }
     });
@@ -205,8 +250,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        // Try to restore from cookies first for instant profile availability
+        const restoredFromCache = restoreProfileFromCookies();
+        // Then fetch fresh data from database
         fetchProfile(session.user).finally(() => setLoading(false));
       } else {
+        clearSubscriptionCookies();
         setLoading(false);
       }
     });
@@ -242,6 +291,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    clearSubscriptionCookies();
+    
     if (isZuupUser(user)) {
       localStorage.removeItem(ZUUP_LOCAL_SESSION_KEY);
       setSession(null);
@@ -284,7 +335,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .eq("user_id", user.id);
     
     if (!error) {
-      setProfile(p => p ? { ...p, ...updates } : p);
+      setProfile(p => {
+        if (!p) return p;
+        const updated = { ...p, ...updates };
+        // Update cookies with new subscription status
+        if (updates.subscription_status || updates.subscription_expires_at || updates.is_admin) {
+          setSubscriptionCookies(updated);
+        }
+        return updated;
+      });
     }
     return { error };
   };
