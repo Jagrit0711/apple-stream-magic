@@ -215,7 +215,7 @@ const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose 
   if (type === "tv" && playingSeason && playingEpisode) {
     src += `/${playingSeason}/${playingEpisode}`;
   }
-  src += "?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true";
+  src += "?color=ff3d7f&autoPlay=true&nextEpisode=false&episodeSelector=false";
   const resumeAt = Math.max(0, Math.floor(resumeSeconds ?? 0));
   if (resumeAt > 0) {
     // Best-effort support for different player query conventions.
@@ -565,6 +565,8 @@ const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose 
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             allowFullScreen
             allow="encrypted-media; fullscreen; autoplay"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"
+            referrerPolicy="no-referrer"
           />
         </motion.div>
       )}

@@ -49,6 +49,8 @@ const AD_URL_PATTERNS = [
   /bc\.vc/i,
 ];
 
+const SAFE_NAV_PROTOCOLS = ["about:", "mailto:", "tel:", "sms:"];
+
 const isAllowedUrl = (url: string): boolean => {
   if (!url || url.startsWith("blob:") || url.startsWith("data:")) return true;
   try {
@@ -66,6 +68,20 @@ const isAllowedUrl = (url: string): boolean => {
   }
 };
 
+const isAllowedTopNavigation = (url: string): boolean => {
+  if (!url) return true;
+  if (SAFE_NAV_PROTOCOLS.some((protocol) => url.startsWith(protocol))) return true;
+
+  try {
+    const parsed = new URL(url, window.location.href);
+    if (parsed.origin === window.location.origin) return true;
+    return ALLOWED_DOMAINS.some((d) => parsed.hostname === d || parsed.hostname.endsWith("." + d));
+  } catch {
+    // Allow relative URLs and ignore malformed values.
+    return true;
+  }
+};
+
 let _initialized = false;
 
 export const initAdBlocker = () => {
@@ -76,7 +92,7 @@ export const initAdBlocker = () => {
   const _originalOpen = window.open.bind(window);
   window.open = (url?: string | URL, target?: string, features?: string): Window | null => {
     const urlStr = url?.toString() || "";
-    if (!isAllowedUrl(urlStr)) {
+    if (!isAllowedTopNavigation(urlStr)) {
       console.warn("[AdBlock] Blocked window.open →", urlStr);
       return null;
     }
@@ -90,14 +106,14 @@ export const initAdBlocker = () => {
 
   try {
     window.location.assign = (url: string) => {
-      if (!isAllowedUrl(url)) {
+      if (!isAllowedTopNavigation(url)) {
         console.warn("[AdBlock] Blocked location.assign →", url);
         return;
       }
       _originalAssign(url);
     };
     window.location.replace = (url: string) => {
-      if (!isAllowedUrl(url)) {
+      if (!isAllowedTopNavigation(url)) {
         console.warn("[AdBlock] Blocked location.replace →", url);
         return;
       }
@@ -112,7 +128,7 @@ export const initAdBlocker = () => {
     const anchor = (e.target as Element)?.closest("a");
     if (!anchor) return;
     const href = anchor.href || anchor.getAttribute("href") || "";
-    if (href && !isAllowedUrl(href)) {
+    if (href && !isAllowedTopNavigation(href)) {
       e.preventDefault();
       e.stopImmediatePropagation();
       console.warn("[AdBlock] Blocked anchor navigation →", href);
@@ -129,7 +145,7 @@ export const initAdBlocker = () => {
       const suspiciousKeys = ["redirect", "navigate", "location", "href", "url", "open"];
       for (const key of suspiciousKeys) {
         if (data[key] && typeof data[key] === "string") {
-          if (!isAllowedUrl(data[key])) {
+          if (!isAllowedTopNavigation(data[key])) {
             console.warn("[AdBlock] Blocked postMessage redirect →", data[key]);
             // We can't prevent the message but we nullify it by not acting
             // The VideoPlayer component also has its own handler
@@ -204,7 +220,7 @@ export const initAdBlocker = () => {
     // If we regained focus very quickly after losing it, a tab-under may have fired
     if (elapsed < 1000 && elapsed > 0) {
       // Check if location changed to something external
-      if (!isAllowedUrl(window.location.href)) {
+      if (!isAllowedTopNavigation(window.location.href)) {
         console.warn("[AdBlock] Tab-under detected, going back");
         window.history.back();
       }
