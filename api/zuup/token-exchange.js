@@ -3,12 +3,8 @@ const OAUTH_TOKEN_ENDPOINT =
   process.env.ZUUP_OAUTH_TOKEN_URL ||
   "https://auth.zuup.dev/api/oauth/token";
 
-const OAUTH_USERINFO_ENDPOINT =
-  process.env.ZUUP_USERINFO_URL ||
-  "https://auth.zuup.dev/api/oauth/userinfo";
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const DEFAULT_CLIENT_ID = "44d62b038a1e5ae27fd071955bd2cad0";
+const DEFAULT_REDIRECT_URI = "https://watch.zuup.dev/auth/zuup/callback";
 
 const setCorsHeaders = (req, res) => {
   const origin = req.headers.origin || "*";
@@ -16,6 +12,14 @@ const setCorsHeaders = (req, res) => {
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+};
+
+const safeJsonParse = (value) => {
+  try {
+    return value ? JSON.parse(value) : {};
+  } catch {
+    return null;
+  }
 };
 
 export default async function handler(req, res) {
@@ -26,15 +30,6 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== "POST") {
-    if (req.method === "GET") {
-      return res.status(405).json({
-        error: "method_not_allowed",
-        method: req.method,
-        message: "Use POST from callback page. Do not navigate directly to /api/zuup/token-exchange.",
-        expected: ["POST", "OPTIONS"],
-      });
-    }
-
     return res.status(405).json({
       error: "method_not_allowed",
       method: req.method,
@@ -44,203 +39,58 @@ export default async function handler(req, res) {
 
   let body = req.body || {};
   if (typeof body === "string") {
-    try {
-      body = JSON.parse(body || "{}");
-    } catch {
+    body = safeJsonParse(body);
+    if (body === null) {
       return res.status(400).json({ error: "invalid_json" });
     }
   }
-  const { code, code_verifier, redirect_uri } = body;
 
-  if (!code || !code_verifier) {
+  const code = typeof body.code === "string" ? body.code.trim() : "";
+  const codeVerifier = typeof body.code_verifier === "string" ? body.code_verifier.trim() : "";
+  const clientId = process.env.ZUUP_CLIENT_ID || DEFAULT_CLIENT_ID;
+  const redirectUri =
+    (typeof body.redirect_uri === "string" && body.redirect_uri.trim()) ||
+    process.env.ZUUP_REDIRECT_URI ||
+    DEFAULT_REDIRECT_URI;
+
+  if (!code || !codeVerifier) {
     return res.status(400).json({
       error: "missing_required_fields",
       has_code: Boolean(code),
-      has_code_verifier: Boolean(code_verifier),
-      hint: "Frontend must POST JSON body with code and code_verifier.",
-    });
-  }
-
-  const clientId = process.env.ZUUP_CLIENT_ID || "zuupwatch";
-  const clientSecret = process.env.ZUUP_CLIENT_SECRET;
-  const missingEnvKeys = [];
-  if (!clientId) missingEnvKeys.push("ZUUP_CLIENT_ID");
-  if (!clientSecret) missingEnvKeys.push("ZUUP_CLIENT_SECRET");
-
-  if (missingEnvKeys.length > 0) {
-    console.error("[zuup-token-exchange] Missing server env keys", {
-      missing: missingEnvKeys,
-      hasTokenUrl: Boolean(process.env.ZUUP_TOKEN_URL || process.env.ZUUP_OAUTH_TOKEN_URL),
-    });
-
-    return res.status(500).json({
-      error: "server_not_configured",
-      missing: missingEnvKeys,
-    });
-  }
-
-  const fallbackRedirectUri = `${req.headers.origin || "https://watch.zuup.dev"}/auth/zuup/callback`;
-  const expectedRedirectUri = (process.env.ZUUP_REDIRECT_URI || fallbackRedirectUri).trim().replace(/\/+$/, "");
-  const requestedRedirectUri = (redirect_uri || "").trim().replace(/\/+$/, "");
-  const redirectUri = expectedRedirectUri;
-
-  if (requestedRedirectUri && requestedRedirectUri !== expectedRedirectUri) {
-    console.warn("[zuup-token-exchange] redirect_uri mismatch", {
-      requestedRedirectUri,
-      expectedRedirectUri,
+      has_code_verifier: Boolean(codeVerifier),
     });
   }
 
   const tokenPayload = {
     grant_type: "authorization_code",
-    client_id: clientId,
     code,
     redirect_uri: redirectUri,
-    code_verifier,
+    client_id: clientId,
+    code_verifier: codeVerifier,
   };
 
-  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`, "utf8").toString("base64");
+  const clientSecret = process.env.ZUUP_CLIENT_SECRET || "";
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  if (clientSecret) {
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`, "utf8").toString("base64");
+    headers.Authorization = `Basic ${basicAuth}`;
+  }
 
   try {
-    console.info("[zuup-token-exchange] Exchanging authorization code", {
-      endpoint: OAUTH_TOKEN_ENDPOINT,
-      method: "POST",
-      contentType: "application/json",
-      hasAuthorizationHeader: Boolean(basicAuth),
-      hasCode: Boolean(code),
-      hasCodeVerifier: Boolean(code_verifier),
-      redirectUri,
-      clientId,
-    });
-
     const upstreamResponse = await fetch(OAUTH_TOKEN_ENDPOINT, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${basicAuth}`,
-      },
+      headers,
       body: JSON.stringify(tokenPayload),
     });
 
-    const upstreamText = await upstreamResponse.text();
-    const upstreamContentType = upstreamResponse.headers.get("content-type") || "";
-    let upstreamBody;
-    try {
-      upstreamBody = upstreamText ? JSON.parse(upstreamText) : {};
-    } catch {
-      upstreamBody = { raw: upstreamText };
-    }
+    const text = await upstreamResponse.text();
+    const parsed = safeJsonParse(text);
+    const bodyOut = parsed === null ? { raw: text } : parsed;
 
-    if (!upstreamResponse.ok) {
-      console.error("[zuup-token-exchange] Upstream token exchange failed", {
-        status: upstreamResponse.status,
-        contentType: upstreamContentType,
-        body: upstreamBody,
-      });
-
-      // Return upstream payload directly when JSON so frontend gets exact provider error body.
-      if (upstreamContentType.includes("application/json")) {
-        return res.status(upstreamResponse.status).json(upstreamBody);
-      }
-
-      return res.status(upstreamResponse.status).json({
-        error: "token_exchange_failed",
-        status: upstreamResponse.status,
-        upstream: upstreamBody,
-      });
-    }
-
-    const accessToken = upstreamBody?.access_token;
-    let userinfo = null;
-    let linkedProfile = null;
-
-    if (accessToken) {
-      const userinfoResponse = await fetch(OAUTH_USERINFO_ENDPOINT, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      const userinfoText = await userinfoResponse.text();
-      try {
-        userinfo = userinfoText ? JSON.parse(userinfoText) : null;
-      } catch {
-        userinfo = { raw: userinfoText };
-      }
-
-      if (!userinfoResponse.ok) {
-        console.warn("[zuup-token-exchange] userinfo fetch failed", {
-          status: userinfoResponse.status,
-          body: userinfo,
-        });
-      }
-
-      const possibleUserId =
-        userinfo?.user_id ||
-        userinfo?.supabase_user_id ||
-        userinfo?.app_user_id ||
-        userinfo?.watch_user_id ||
-        userinfo?.sub ||
-        null;
-      const possibleEmail = typeof userinfo?.email === "string" ? userinfo.email.trim().toLowerCase() : null;
-
-      if ((possibleUserId || possibleEmail) && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-        const profileUrl = new URL(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/apple_profiles`);
-        profileUrl.searchParams.set("select", "*");
-        if (possibleEmail) {
-          profileUrl.searchParams.set("email", `eq.${possibleEmail}`);
-        } else {
-          profileUrl.searchParams.set("user_id", `eq.${possibleUserId}`);
-        }
-        profileUrl.searchParams.set("limit", "1");
-
-        const profileRes = await fetch(profileUrl.toString(), {
-          method: "GET",
-          headers: {
-            apikey: SUPABASE_SERVICE_ROLE_KEY,
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          },
-        });
-
-        const profileText = await profileRes.text();
-        try {
-          const parsed = profileText ? JSON.parse(profileText) : [];
-          linkedProfile = Array.isArray(parsed) ? parsed[0] || null : parsed;
-
-          if (!linkedProfile && possibleUserId && possibleEmail) {
-            const fallbackUrl = new URL(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/apple_profiles`);
-            fallbackUrl.searchParams.set("select", "*");
-            fallbackUrl.searchParams.set("user_id", `eq.${possibleUserId}`);
-            fallbackUrl.searchParams.set("limit", "1");
-
-            const fallbackRes = await fetch(fallbackUrl.toString(), {
-              method: "GET",
-              headers: {
-                apikey: SUPABASE_SERVICE_ROLE_KEY,
-                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              },
-            });
-
-            const fallbackText = await fallbackRes.text();
-            try {
-              const fallbackParsed = fallbackText ? JSON.parse(fallbackText) : [];
-              linkedProfile = Array.isArray(fallbackParsed) ? fallbackParsed[0] || null : fallbackParsed;
-            } catch {
-              linkedProfile = null;
-            }
-          }
-        } catch {
-          linkedProfile = null;
-        }
-      }
-    }
-
-    return res.status(200).json({
-      ...upstreamBody,
-      userinfo,
-      linked_profile: linkedProfile,
-    });
+    return res.status(upstreamResponse.status).json(bodyOut);
   } catch (error) {
     return res.status(502).json({
       error: "upstream_unreachable",
