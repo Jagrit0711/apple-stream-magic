@@ -6,6 +6,44 @@ import { exchangeZuupCode, ZUUP_AUTH_STATE_KEY, ZUUP_AUTH_VERIFIER_KEY } from "@
 const getExchangeLockKey = (code: string) => `zuup_exchange_lock:${code}`;
 const ZUUP_LOCAL_SESSION_KEY = "zuup_local_session";
 
+const decodeJwtPayload = (token?: string) => {
+  if (!token || token.split(".").length < 2) return null;
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const buildUserinfoFromTokens = (tokenResponse: any) => {
+  const idClaims = decodeJwtPayload(tokenResponse?.id_token);
+  const accessClaims = decodeJwtPayload(tokenResponse?.access_token);
+  const merged = {
+    ...(accessClaims || {}),
+    ...(idClaims || {}),
+  } as Record<string, any>;
+
+  const email =
+    typeof merged.email === "string"
+      ? merged.email
+      : typeof merged.preferred_username === "string" && merged.preferred_username.includes("@")
+        ? merged.preferred_username
+        : null;
+
+  return {
+    ...merged,
+    email,
+    name:
+      merged.name ||
+      merged.given_name ||
+      merged.preferred_username ||
+      email ||
+      "Zuup User",
+  };
+};
+
 const ZuupCallback = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string>("");
@@ -53,6 +91,10 @@ const ZuupCallback = () => {
       let refreshToken = params.refreshToken;
       let userinfo: any = null;
       let linkedProfile: any = null;
+      let idToken = "";
+      let tokenType = "";
+      let expiresIn: number | undefined;
+      let scope = "";
 
       if (params.code) {
         const lockKey = getExchangeLockKey(params.code);
@@ -66,8 +108,33 @@ const ZuupCallback = () => {
           const tokenResponse = await exchangeZuupCode(params.code);
           accessToken = tokenResponse.access_token || "";
           refreshToken = tokenResponse.refresh_token || "";
+          idToken = tokenResponse.id_token || "";
+          tokenType = tokenResponse.token_type || "";
+          expiresIn = tokenResponse.expires_in;
+          scope = tokenResponse.scope || "";
           userinfo = (tokenResponse as any).userinfo || null;
           linkedProfile = (tokenResponse as any).linked_profile || null;
+
+          // Fallback: if server returns only token fields, derive identity from JWT claims.
+          if (!userinfo && (idToken || accessToken)) {
+            userinfo = buildUserinfoFromTokens(tokenResponse);
+          }
+
+          // Optional enrichment for display fields when auth server allows userinfo fetch.
+          if (!userinfo && accessToken) {
+            try {
+              const userinfoRes = await fetch("https://auth.zuup.dev/api/oauth/userinfo", {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              });
+              const raw = await userinfoRes.text();
+              userinfo = raw ? JSON.parse(raw) : null;
+            } catch {
+              // Keep derived claims-only identity if userinfo call fails.
+            }
+          }
         } catch (exchangeError: any) {
           sessionStorage.removeItem(lockKey);
           sessionStorage.removeItem(ZUUP_AUTH_STATE_KEY);
@@ -90,6 +157,10 @@ const ZuupCallback = () => {
       const persisted = {
         access_token: accessToken,
         refresh_token: refreshToken,
+        id_token: idToken,
+        token_type: tokenType,
+        expires_in: expiresIn,
+        scope,
         userinfo,
         linked_profile: linkedProfile,
         updated_at: now,

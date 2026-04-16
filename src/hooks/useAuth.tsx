@@ -15,6 +15,10 @@ const ZUUP_LOCAL_SESSION_KEY = "zuup_local_session";
 type ZuupLocalSession = {
   access_token?: string;
   refresh_token?: string;
+  id_token?: string;
+  token_type?: string;
+  expires_in?: number;
+  scope?: string;
   userinfo?: Record<string, any> | null;
   linked_profile?: Record<string, any> | null;
   updated_at?: number;
@@ -65,11 +69,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
 
+  const decodeJwtPayload = (token?: string) => {
+    if (!token || token.split(".").length < 2) return null;
+    try {
+      const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+      return JSON.parse(atob(padded));
+    } catch {
+      return null;
+    }
+  };
+
   const mapZuupUser = (zuup: ZuupLocalSession) => {
-    const info = zuup.userinfo || {};
+    const idClaims = decodeJwtPayload(zuup.id_token);
+    const accessClaims = decodeJwtPayload(zuup.access_token);
+    const info = {
+      ...(accessClaims || {}),
+      ...(idClaims || {}),
+      ...(zuup.userinfo || {}),
+    } as Record<string, any>;
     const linked = zuup.linked_profile || {};
-    const id = String(linked.user_id || info.user_id || info.supabase_user_id || info.app_user_id || info.watch_user_id || info.sub || info.id || info.email || "zuup-user");
-    const email = typeof info.email === "string" ? info.email : null;
+    const email =
+      typeof info.email === "string"
+        ? info.email
+        : typeof info.preferred_username === "string" && info.preferred_username.includes("@")
+          ? info.preferred_username
+          : null;
+
+    const id = String(
+      linked.user_id ||
+      info.user_id ||
+      info.supabase_user_id ||
+      info.app_user_id ||
+      info.watch_user_id ||
+      info.sub ||
+      info.id ||
+      email ||
+      "zuup-user"
+    );
+
     const nowIso = new Date().toISOString();
     return {
       id,
@@ -80,7 +118,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       updated_at: nowIso,
       app_metadata: { provider: "zuup", providers: ["zuup"] },
       user_metadata: {
-        display_name: info.name || info.preferred_username || email || "Zuup User",
+        display_name:
+          info.name ||
+          [info.given_name, info.family_name].filter(Boolean).join(" ") ||
+          info.preferred_username ||
+          email ||
+          "Zuup User",
         avatar_url: info.picture || null,
         zuup_userinfo: info,
         zuup_linked_profile: linked,
@@ -106,7 +149,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         avatar_url: (zuupUser.user_metadata as any)?.avatar_url || null,
         onboarding_complete: true,
         favorite_genres: [],
-        is_admin: Boolean(info.is_admin),
+        is_admin: Boolean(info.is_admin || info.admin || info.role === "admin"),
         subscription_status: (typeof info.subscription_status === "string" ? info.subscription_status : "active"),
         subscription_expires_at: typeof info.subscription_expires_at === "string" ? info.subscription_expires_at : null,
         renewal_whatsapp: SUPPORT_WHATSAPP_NUMBER,
@@ -286,6 +329,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    // Manual Supabase login should not be shadowed by an old Zuup local session.
+    localStorage.removeItem(ZUUP_LOCAL_SESSION_KEY);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error as Error | null };
   };
