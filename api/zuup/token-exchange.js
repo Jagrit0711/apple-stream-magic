@@ -2,6 +2,8 @@ const OAUTH_TOKEN_ENDPOINT =
   process.env.ZUUP_TOKEN_URL ||
   process.env.ZUUP_OAUTH_TOKEN_URL ||
   "https://auth.zuup.dev/api/oauth/token";
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 const DEFAULT_CLIENT_ID = "44d62b038a1e5ae27fd071955bd2cad0";
 const DEFAULT_REDIRECT_URI = "https://watch.zuup.dev/auth/zuup/callback";
@@ -17,6 +19,21 @@ const setCorsHeaders = (req, res) => {
 const safeJsonParse = (value) => {
   try {
     return value ? JSON.parse(value) : {};
+  } catch {
+    return null;
+  }
+};
+
+const decodeJwtPayload = (token) => {
+  if (!token || typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+
+  try {
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
+    const raw = Buffer.from(padded, "base64").toString("utf8");
+    return safeJsonParse(raw);
   } catch {
     return null;
   }
@@ -89,6 +106,43 @@ export default async function handler(req, res) {
     const text = await upstreamResponse.text();
     const parsed = safeJsonParse(text);
     const bodyOut = parsed === null ? { raw: text } : parsed;
+
+    // Resolve existing Supabase profile by email so Zuup login reuses the same user_id/data policy.
+    if (upstreamResponse.ok && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      const idClaims = decodeJwtPayload(bodyOut?.id_token);
+      const accessClaims = decodeJwtPayload(bodyOut?.access_token);
+      const emailRaw =
+        bodyOut?.userinfo?.email ||
+        idClaims?.email ||
+        accessClaims?.email ||
+        null;
+      const email = typeof emailRaw === "string" ? emailRaw.trim().toLowerCase() : "";
+
+      if (email) {
+        try {
+          const url = new URL(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/apple_profiles`);
+          url.searchParams.set("select", "*");
+          url.searchParams.set("email", `eq.${email}`);
+          url.searchParams.set("limit", "1");
+
+          const profileRes = await fetch(url.toString(), {
+            method: "GET",
+            headers: {
+              apikey: SUPABASE_SERVICE_ROLE_KEY,
+              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+          });
+
+          const profileText = await profileRes.text();
+          const parsedProfile = safeJsonParse(profileText);
+          if (Array.isArray(parsedProfile) && parsedProfile[0]) {
+            bodyOut.linked_profile = parsedProfile[0];
+          }
+        } catch {
+          // Keep token exchange successful even if optional profile linking fails.
+        }
+      }
+    }
 
     return res.status(upstreamResponse.status).json(bodyOut);
   } catch (error) {
