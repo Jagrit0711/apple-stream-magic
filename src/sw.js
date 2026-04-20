@@ -163,43 +163,5 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Fetch: intercept every single network request
-self.addEventListener("fetch", (event) => {
-  const url = event.request.url;
-
-  // Block known ad domains with an empty 200 response
-  if (isBlocked(url)) {
-    console.warn("[SW AdBlock] Blocked request →", url);
-    event.respondWith(
-      new Response("", {
-        status: 200,
-        statusText: "OK",
-        headers: { "Content-Type": "text/plain" },
-      })
-    );
-    return;
-  }
-
-  // For navigation requests, only intercept actual redirect attacks
-  // (navigations to known ad domains), let everything else through
-  if (
-    event.request.mode === "navigate" &&
-    event.request.destination === "document"
-  ) {
-    try {
-      if (isBlocked(url) && !url.startsWith(self.location.origin)) {
-        event.respondWith(
-          new Response(
-            `<!DOCTYPE html><html><head><script>window.location.href = "/";<\/script></head><body></body></html>`,
-            { status: 200, headers: { "Content-Type": "text/html" } }
-          )
-        );
-        return;
-      }
-    } catch {}
-  }
-
-  // DO NOTHING for all other requests. 
-  // By not calling event.respondWith, we let the browser handle the fetch natively.
-  // This prevents the Service Worker from breaking CORS, HMR, or network fallbacks.
-});
+// Ad blocker disabled: no fetch interception
+// This service worker is now a no-op for all fetch events.

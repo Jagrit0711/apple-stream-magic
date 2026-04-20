@@ -1,7 +1,4 @@
-import { useEffect, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "./useAuth";
+import { useEffect, useCallback, useState } from "react";
 import { TMDBMovie, getTitle, getContentType } from "@/lib/tmdb";
 
 export interface WatchHistoryItem {
@@ -23,85 +20,24 @@ export interface WatchHistoryItem {
 }
 
 export const useWatchHistory = () => {
-  const { user, profile } = useAuth();
-  const queryClient = useQueryClient();
-  const isZuupUser = (user as any)?.app_metadata?.provider === "zuup";
-  const actorUserId = profile?.user_id || user?.id || null;
+  // Local storage key
+  const STORAGE_KEY = "zuup_watch_history";
+  const [history, setHistory] = useState<WatchHistoryItem[]>([]);
 
-  const writeContentRow = async (payload: Record<string, any>) => {
-    const primary = await supabase
-      .from("apple_user_content" as any)
-      .upsert(payload, { onConflict: "user_id,tmdb_id,media_type" });
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setHistory(JSON.parse(raw));
+    } catch {}
+  }, []);
 
-    if (!primary.error) return;
-
-    const missingRelation = /relation .* does not exist/i.test(primary.error.message || "");
-    if (!missingRelation) throw primary.error;
-
-    const legacyPayload = {
-      user_id: payload.user_id,
-      tmdb_id: payload.tmdb_id,
-      media_type: payload.media_type,
-      title: payload.title,
-      poster_path: payload.poster_path,
-      backdrop_path: payload.backdrop_path,
-      progress: payload.progress,
-      duration: payload.duration,
-      season: payload.season,
-      episode: payload.episode,
-      last_watched_at: payload.last_watched_at,
-    };
-
-    const fallback = await supabase
-      .from("watch_history" as any)
-      .upsert(legacyPayload, { onConflict: "user_id,tmdb_id,media_type" });
-
-    if (fallback.error) throw fallback.error;
+  // Save to localStorage
+  const saveHistory = (items: WatchHistoryItem[]) => {
+    setHistory(items);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch {}
   };
 
-  const { data: history = [] } = useQuery({
-    queryKey: ["watch-history", actorUserId, isZuupUser],
-    queryFn: async () => {
-      if (!actorUserId) return [];
-
-      if (isZuupUser) {
-        const res = await fetch(`/api/zuup/user-content?user_id=${encodeURIComponent(actorUserId)}&limit=20`);
-        const text = await res.text();
-        const parsed = text ? JSON.parse(text) : [];
-        if (!res.ok) throw new Error(parsed?.error || "Failed to fetch watch history");
-        return (Array.isArray(parsed) ? parsed : []) as WatchHistoryItem[];
-      }
-
-      const { data, error } = await supabase
-        .from("apple_user_content" as any)
-        .select("*")
-        .eq("user_id", actorUserId)
-        .order("last_watched_at", { ascending: false })
-        .limit(20);
-
-      if (!error) return (data || []) as any as WatchHistoryItem[];
-
-      const missingRelation = /relation .* does not exist/i.test(error.message || "");
-      if (!missingRelation) throw error;
-
-      const { data: legacyData, error: legacyError } = await supabase
-        .from("watch_history" as any)
-        .select("*")
-        .eq("user_id", actorUserId)
-        .order("last_watched_at", { ascending: false })
-        .limit(20);
-
-      if (legacyError) throw legacyError;
-      return (legacyData || []).map((row: any) => ({
-        ...row,
-        in_watchlist: false,
-        added_to_watchlist_at: null,
-        position_seconds: null,
-        duration_seconds: null,
-      })) as WatchHistoryItem[];
-    },
-    enabled: !!actorUserId,
-  });
 
   // Items between 5% and 90% progress = continue watching
   // Items >= 90% = recently watched (finished)
@@ -109,62 +45,43 @@ export const useWatchHistory = () => {
   const continueWatching = history.filter(h => h.progress < 90);
   const recentlyWatched = history.filter(h => h.progress >= 90).slice(0, 10);
 
-  const upsertMutation = useMutation({
-    mutationFn: async (entry: {
-      tmdb_id: number;
-      media_type: string;
-      title?: string;
-      poster_path?: string | null;
-      backdrop_path?: string | null;
-      progress: number;
-      duration?: number | null;
-      position_seconds?: number | null;
-      duration_seconds?: number | null;
-      season?: number;
-      episode?: number;
-    }) => {
-      if (!actorUserId) return;
-      
-      const payload: any = {
-        user_id: actorUserId,
+
+  // Add or update a watch history entry
+  const upsertHistory = (entry: Partial<WatchHistoryItem> & { tmdb_id: number; media_type: string }) => {
+    const now = new Date().toISOString();
+    let updated = false;
+    let items = [...history];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].tmdb_id === entry.tmdb_id && items[i].media_type === entry.media_type &&
+        (entry.media_type !== "tv" || (items[i].season === entry.season && items[i].episode === entry.episode))) {
+        items[i] = { ...items[i], ...entry, last_watched_at: now };
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+      items.unshift({
+        id: `${entry.tmdb_id}-${entry.media_type}-${entry.season ?? ""}-${entry.episode ?? ""}`,
         tmdb_id: entry.tmdb_id,
         media_type: entry.media_type,
-        progress: entry.progress,
-        last_watched_at: new Date().toISOString(),
-      };
-      
-      if (entry.title !== undefined) payload.title = entry.title;
-      if (entry.poster_path !== undefined) payload.poster_path = entry.poster_path;
-      if (entry.backdrop_path !== undefined) payload.backdrop_path = entry.backdrop_path;
-      if (entry.duration !== undefined) payload.duration = entry.duration;
-      if (entry.position_seconds !== undefined) payload.position_seconds = entry.position_seconds;
-      if (entry.duration_seconds !== undefined) payload.duration_seconds = entry.duration_seconds;
-      if (entry.season !== undefined) payload.season = entry.season ?? null;
-      if (entry.episode !== undefined) payload.episode = entry.episode ?? null;
-
-      // Fallback for title to satisfy NOT NULL constraint on INSERT
-      if (!payload.title) payload.title = `Content ${entry.tmdb_id}`;
-
-      if (isZuupUser) {
-        const res = await fetch("/api/zuup/user-content", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || "Watch history upsert failed");
-        }
-        return;
-      }
-
-      await writeContentRow(payload);
-    },
-    onError: (error) => {
-      console.error("Watch history upsert error:", error);
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watch-history"] }),
-  });
+        title: entry.title || `Content ${entry.tmdb_id}`,
+        poster_path: entry.poster_path || null,
+        backdrop_path: entry.backdrop_path || null,
+        in_watchlist: false,
+        added_to_watchlist_at: null,
+        progress: entry.progress ?? 0,
+        duration: entry.duration ?? null,
+        position_seconds: entry.position_seconds ?? null,
+        duration_seconds: entry.duration_seconds ?? null,
+        season: entry.season ?? null,
+        episode: entry.episode ?? null,
+        last_watched_at: now,
+      });
+    }
+    // Limit to 50 entries
+    if (items.length > 50) items = items.slice(0, 50);
+    saveHistory(items);
+  };
 
   const trackWatch = useCallback(
     (
@@ -176,7 +93,7 @@ export const useWatchHistory = () => {
       positionSeconds?: number | null,
       durationSeconds?: number | null,
     ) => {
-      upsertMutation.mutate({
+      upsertHistory({
         tmdb_id: item.id,
         media_type: getContentType(item),
         title: getTitle(item),
@@ -190,23 +107,16 @@ export const useWatchHistory = () => {
         episode,
       });
     },
-    [upsertMutation]
+    [history]
   );
 
   // Listen for progress messages from VIDEASY player
   // Videasy sends postMessage with various formats - handle all of them
   useEffect(() => {
-    if (!actorUserId) return;
-
     const handler = (event: MessageEvent) => {
       try {
         const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
         if (!data || typeof data !== "object") return;
-
-        // Videasy postMessage formats:
-        // { type: "progress", id, progress, duration, season, episode }
-        // { id, progress, type/media_type, title, season, episode }
-        // { event: "timeupdate", currentTime, duration, ... }
 
         const readNumber = (...values: unknown[]) => {
           for (const value of values) {
@@ -229,7 +139,6 @@ export const useWatchHistory = () => {
 
         const source = data.data && typeof data.data === "object" ? data.data : data;
 
-        // Format 1: videasy standard
         if (source.id !== undefined || source.tmdb_id !== undefined || source.contentId !== undefined) {
           tmdb_id = readNumber(source.tmdb_id, source.contentId, source.content_id, source.id, source.movieId, source.tvId);
           progressPct = readNumber(source.progress, source.percent, source.percentage);
@@ -240,9 +149,7 @@ export const useWatchHistory = () => {
           positionSeconds = readNumber(source.currentTime, source.current_time, source.position, source.time, source.elapsed);
           season = readNumber(source.season, source.season_number);
           episode = readNumber(source.episode, source.episode_number);
-        }
-        // Format 2: timeupdate event
-        else if (source.event === "timeupdate" && source.currentTime && source.duration) {
+        } else if (source.event === "timeupdate" && source.currentTime && source.duration) {
           tmdb_id = readNumber(source.tmdb_id, source.contentId, source.content_id, source.id, source.movieId, source.tvId);
           const pct = (Number(source.currentTime) / Number(source.duration)) * 100;
           progressPct = Math.round(pct);
@@ -267,8 +174,7 @@ export const useWatchHistory = () => {
         if (!tmdb_id || progressPct === undefined || isNaN(tmdb_id) || isNaN(progressPct)) return;
         if (progressPct < 0 || progressPct > 100) return;
 
-        // Throttle: only update every ~30 seconds worth of change (avoid too many writes)
-        upsertMutation.mutate({
+        upsertHistory({
           tmdb_id,
           media_type,
           ...(title && { title }),
@@ -283,10 +189,9 @@ export const useWatchHistory = () => {
         // Silently ignore parse errors
       }
     };
-
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [actorUserId, upsertMutation]);
+  }, [history]);
 
   const getHistoryEntry = useCallback(
     (tmdbId: number, mediaType: "movie" | "tv", season?: number, episode?: number) => {

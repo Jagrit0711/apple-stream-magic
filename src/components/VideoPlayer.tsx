@@ -597,28 +597,52 @@ const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose 
           </AnimatePresence>
 
           {/* ── IFRAME PLAYER ───────────────────────────────────────── */}
-          <iframe
-            ref={iframeRef}
-            src={src}
-            key={src}
-            onLoad={() => setIsIframeLoaded(true)}
-            className={`
-              w-[96vw] h-[54vw] max-h-[88dvh]
-              landscape:w-screen landscape:h-[100dvh] landscape:max-h-[100dvh]
-              md:w-full md:h-full
-              rounded-2xl landscape:rounded-none md:rounded-none
-              border border-white/10 landscape:border-0 md:border-0
-              relative z-[90]
-              transition-opacity duration-700
-              shadow-2xl landscape:shadow-none md:shadow-none
-              ${isIframeLoaded ? "opacity-100" : "opacity-0"}
-            `}
-            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-            allowFullScreen
-            allow="encrypted-media; fullscreen; autoplay"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"
-            referrerPolicy="no-referrer"
-          />
+          {selectedPlayer === "videasy" ? (
+            <iframe
+              ref={iframeRef}
+              src={src}
+              key={src}
+              onLoad={() => setIsIframeLoaded(true)}
+              className={`
+                w-[96vw] h-[54vw] max-h-[88dvh]
+                landscape:w-screen landscape:h-[100dvh] landscape:max-h-[100dvh]
+                md:w-full md:h-full
+                rounded-2xl landscape:rounded-none md:rounded-none
+                border border-white/10 landscape:border-0 md:border-0
+                relative z-[90]
+                transition-opacity duration-700
+                shadow-2xl landscape:shadow-none md:shadow-none
+                ${isIframeLoaded ? "opacity-100" : "opacity-0"}
+              `}
+              style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+              allowFullScreen
+              allow="encrypted-media; fullscreen; autoplay"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <iframe
+              ref={iframeRef}
+              src={src}
+              key={src}
+              onLoad={() => setIsIframeLoaded(true)}
+              className={`
+                w-[96vw] h-[54vw] max-h-[88dvh]
+                landscape:w-screen landscape:h-[100dvh] landscape:max-h-[100dvh]
+                md:w-full md:h-full
+                rounded-2xl landscape:rounded-none md:rounded-none
+                border border-white/10 landscape:border-0 md:border-0
+                relative z-[90]
+                transition-opacity duration-700
+                shadow-2xl landscape:shadow-none md:shadow-none
+                ${isIframeLoaded ? "opacity-100" : "opacity-0"}
+              `}
+              style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+              allowFullScreen
+              allow="encrypted-media; fullscreen; autoplay"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"
+              referrerPolicy="no-referrer"
+            />
+          )}
         </motion.div>
       )}
     </AnimatePresence>
