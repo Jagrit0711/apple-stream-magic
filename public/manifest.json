@@ -1,6 +1,6 @@
 {
-  "name": "Watch by zuup",
-  "short_name": "Watch",
+  "name": "Zuup Watch",
+  "short_name": "Zuup Watch",
   "description": "Stream unlimited movies, TV shows & anime",
   "categories": ["entertainment", "video", "movies"],
   "start_url": "/",
@@ -34,14 +34,14 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Watch by zuup on Desktop"
+      "label": "Zuup Watch on Desktop"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Watch by zuup on Mobile"
+      "label": "Zuup Watch on Mobile"
     }
   ]
 }

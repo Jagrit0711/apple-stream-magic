@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Loader2, Play, X, Tv2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -21,7 +22,16 @@ const isTVDevice = () =>
   navigator.userAgent.toLowerCase().includes("tv") ||
   navigator.userAgent.toLowerCase().includes("smart-tv");
 
+const PLAYER_OPTIONS = [
+  { key: "vidking", label: "Server 1" },
+  { key: "videasy", label: "Server 2" },
+];
+
+const SITE_COLOR = "e50914"; // Your site accent color (hex, no #)
+
 const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose }: VideoPlayerProps) => {
+    const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+    const [showPlayerSelect, setShowPlayerSelect] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -209,24 +219,65 @@ const VideoPlayer = ({ contentId, type, season, episode, resumeSeconds, onClose 
     }
   }, [episodes, detail, playingSeason, playingEpisode, allSeasons]);
 
-  if (!contentId) return null;
 
-  let src = `https://www.vidking.net/embed/${type}/${contentId}`;
-  if (type === "tv" && playingSeason && playingEpisode) {
-    src += `/${playingSeason}/${playingEpisode}`;
+  // Show player selection dialog if not chosen
+  if (!contentId) return null;
+  if (showPlayerSelect && contentId) {
+    return (
+      <div className="fixed inset-0 z-[200] bg-black/90 flex flex-col items-center justify-center">
+        <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 flex flex-col gap-6 items-center min-w-[320px]">
+          <h2 className="text-white text-xl font-bold mb-2">Choose a Video Player</h2>
+          <div className="flex flex-col gap-4 w-full">
+            {PLAYER_OPTIONS.map(opt => (
+              <button
+                key={opt.key}
+                className="w-full py-3 px-6 rounded-lg bg-[#e50914] text-white font-bold text-lg hover:bg-[#b0060f] transition-all focus:outline-none focus:ring-2 focus:ring-[#e50914]"
+                onClick={() => { setSelectedPlayer(opt.key); setShowPlayerSelect(false); }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <button
+            className="mt-4 text-white/60 hover:text-white text-xs underline"
+            onClick={onClose}
+          >Cancel</button>
+        </div>
+      </div>
+    );
   }
-  src += "?color=ff3d7f&autoPlay=true&nextEpisode=false&episodeSelector=false";
-  const resumeAt = Math.max(0, Math.floor(resumeSeconds ?? 0));
-  if (resumeAt > 0) {
-    // Best-effort support for different player query conventions.
-    src += `&startAt=${resumeAt}&start=${resumeAt}&t=${resumeAt}`;
+
+
+  // Build iframe src based on selected player
+  let src = "";
+  if (selectedPlayer === "vidking") {
+    src = `https://www.vidking.net/embed/${type}/${contentId}`;
+    if (type === "tv" && playingSeason && playingEpisode) {
+      src += `/${playingSeason}/${playingEpisode}`;
+    }
+    src += `?color=${SITE_COLOR}&autoPlay=true&nextEpisode=false&episodeSelector=false`;
+    const resumeAt = Math.max(0, Math.floor(resumeSeconds ?? 0));
+    if (resumeAt > 0) {
+      src += `&startAt=${resumeAt}&start=${resumeAt}&t=${resumeAt}`;
+    }
+  } else if (selectedPlayer === "videasy") {
+    // VIDEASY URL structure
+    if (type === "movie") {
+      src = `https://player.videasy.net/movie/${contentId}?color=${SITE_COLOR}`;
+    } else if (type === "tv") {
+      src = `https://player.videasy.net/tv/${contentId}/${playingSeason}/${playingEpisode}?color=${SITE_COLOR}`;
+    }
+    const resumeAt = Math.max(0, Math.floor(resumeSeconds ?? 0));
+    if (resumeAt > 0) {
+      src += `&progress=${resumeAt}`;
+    }
   }
 
   const title = (detail as any)?.title || (detail as any)?.name || "";
 
   return (
     <AnimatePresence>
-      {contentId && (
+      {contentId && selectedPlayer && (
         <motion.div
           className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center landscape:items-stretch landscape:justify-start font-sans"
           initial={{ opacity: 0 }}
